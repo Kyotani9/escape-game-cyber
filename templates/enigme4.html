@@ -2,64 +2,53 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Énigme 4 — Procédure de Réaction</title>
+    <title>Énigme 4 — Gestion d'Incident & Preuves</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 25px; display: flex; justify-content: center; }
-        .container { max-width: 800px; width: 100%; background: #1e293b; border-radius: 10px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
-        .step-title { font-size: 18px; font-weight: bold; color: #60a5fa; }
-        .timer-badge { background: #b91c1c; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .container { max-width: 850px; width: 100%; background: #1e293b; border-radius: 10px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .top-bar { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
         .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; }
-        .choice-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
-        .choice-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-        .choice-item:hover { border-color: #60a5fa; }
-        .choice-text { font-size: 14px; color: #e2e8f0; line-height: 1.4; }
+        .choice-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .choice-desc { font-size: 13.5px; color: #cbd5e1; line-height: 1.5; }
         .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .feedback-box { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 14.5px; }
-        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; }
-        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; }
+        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; }
         .btn-next { display: inline-block; margin-top: 15px; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <div class="top-bar">
-            <span class="step-title">Énigme 4 sur 4 — La Règle d'or en cas d'attaque</span>
-            <span class="timer-badge">Temps restant : {{ (temps_restant // 60) }}m {{ (temps_restant % 60) }}s</span>
+            <strong>Énigme 4/4 : Chaîne de réaction à incident (PSSI)</strong>
+            <span style="color: #f87171; font-weight: bold;">Temps restant : {{ temps_restant // 60 }}m</span>
         </div>
-
         <div class="context-box">
-            <strong>Situation critique :</strong> Vous constatez qu'un rançongiciel commence à chiffrer des fichiers sur votre poste. Quelle est la première action immédiate à entreprendre selon la Fiche Réflexe DSI ?
+            <strong>Alerte Rançongiciel :</strong> Un poste du réseau local commence à afficher des extensions de fichiers chiffrées en <code>.locked</code>. Quelle action immédiate prescrit la PSSI afin de limiter l'attaque sans entraver l'enquête judiciaire ?
         </div>
-
         <form method="POST">
-            <div class="choice-list">
-                <label class="choice-item">
-                    <span class="choice-text">1. Éteindre brutalement l'ordinateur en coupant l'alimentation électrique.</span>
-                    <input type="radio" name="choix_reflexe" value="action_eteindre" required>
-                </label>
+            <label class="choice-card">
+                <div class="choice-desc">1. Couper le disjoncteur général ou forcer l'extinction du PC avec le bouton d'alimentation.</div>
+                <input type="radio" name="incident_action" value="action_hard_reboot" required>
+            </label>
 
-                <label class="choice-item">
-                    <span class="choice-text">2. Débrancher immédiatement le câble réseau (RJ45) / couper le Wi-Fi, laisser la machine allumée et alerter la DSI.</span>
-                    <input type="radio" name="choix_reflexe" value="action_isoler" required>
-                </label>
+            <label class="choice-card">
+                <div class="choice-desc">2. Déconnecter physiquement le câble réseau Ethernet (RJ45) / désactiver le Wi-Fi, <strong>laisser l'ordinateur allumé</strong> et contacter la DSI.</div>
+                <input type="radio" name="incident_action" value="action_forensique" required>
+            </label>
 
-                <label class="choice-item">
-                    <span class="choice-text">3. Tenter de copier les fichiers chiffrés sur une clé USB personnelle pour les sauvegarder.</span>
-                    <input type="radio" name="choix_reflexe" value="action_cle" required>
-                </label>
-            </div>
+            <label class="choice-card">
+                <div class="choice-desc">3. Exécuter un antivirus grand public téléchargé depuis un autre poste pour tenter de nettoyer les fichiers chiffrés.</div>
+                <input type="radio" name="incident_action" value="action_antivirus" required>
+            </label>
 
             {% if not success %}
-                <button type="submit" class="btn-submit">Valider l'action réflexe</button>
+                <button type="submit" class="btn-submit">Valider le réflexe de sécurité</button>
             {% endif %}
         </form>
 
         {% if feedback %}
-            <div class="feedback-box {{ 'feedback-success' if success else 'feedback-error' }}">
+            <div class="{{ 'feedback-success' if success else 'feedback-error' }}">
                 {{ feedback }}
                 {% if success %}
                     <br><a href="/victoire" class="btn-next">Accéder au Terminal de Déchiffrement Final →</a>
@@ -67,6 +56,5 @@
             </div>
         {% endif %}
     </div>
-
 </body>
 </html>

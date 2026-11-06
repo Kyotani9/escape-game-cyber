@@ -1,41 +1,136 @@
 import os
 import time
-from flask import Flask, render_template, request, redirect, url_for, session
+import io
+import csv
+from datetime import datetime
+from functools import wraps
+import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from flask import Flask, render_template, request, redirect, url_for, session, Response, make_response
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "cle_secrete_escape_game_cyber_2026")
+app.secret_key = os.environ.get("SECRET_KEY", "escape_game_cle_secrete_adam_2026")
 
-# Temps total imparti : 25 minutes (en secondes)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "CyberAdam2026!")
+
 TEMPS_TOTAL_SECONDES = 25 * 60
 
-# Le code maître à reconstituer : 7 - 4 - 9 - 2
-CODE_FINAL_CORRECT = "7492"
+# Liste officielle des services municipaux
+SERVICES_MUNICIPAUX = [
+    "Direction Générale des Services (DGS)",
+    "Direction des Systèmes d'Information (DSI)",
+    "Ressources Humaines",
+    "Finances & Comptabilité",
+    "Services Techniques & CTM",
+    "Urbanisme & Aménagement",
+    "État Civil & Affaires Générales",
+    "Police Municipale",
+    "Enfance, Jeunesse & Scolaire",
+    "Culture & Événementiel",
+    "Centre Communal d'Action Sociale (CCAS)",
+    "Communication"
+]
+
+# Les 4 indices secrets à débloquer :
+# Énigme 1 -> 8 (Analyse d'en-tête SPF/DKIM)
+# Énigme 2 -> 3 (Évaluation entropie & hash)
+# Énigme 3 -> 6 (Double extension masquée RTLO / macro malveillante)
+# Énigme 4 -> 1 (Matrice d'isolation & confinement réseau)
+CODE_FINAL_CORRECT = "8361"
+
+
+def get_db():
+    if DATABASE_URL:
+        # Prise en charge de postgresql:// (correction du protocole postgres:// de Render)
+        uri = DATABASE_URL
+        if uri.startswith("postgres://"):
+            uri = uri.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(uri)
+        return conn
+    else:
+        conn = sqlite3.connect("escape_resultats.db")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    if DATABASE_URL:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS escape_scores (
+                id SERIAL PRIMARY KEY,
+                agent_nom VARCHAR(120) NOT NULL,
+                service VARCHAR(120) NOT NULL,
+                statut VARCHAR(50) NOT NULL,
+                erreurs INTEGER DEFAULT 0,
+                temps_ecoule VARCHAR(50) NOT NULL,
+                date_passage TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS escape_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_nom TEXT NOT NULL,
+                service TEXT NOT NULL,
+                statut TEXT NOT NULL,
+                erreurs INTEGER DEFAULT 0,
+                temps_ecoule TEXT NOT NULL,
+                date_passage TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+
+def check_auth(username, password):
+    return username == ADMIN_USER and password == ADMIN_PASSWORD
+
+def authenticate():
+    return Response(
+        "Accès refusé. Authentification DSI requise.\n", 401,
+        {"WWW-Authenticate": 'Basic realm="Espace Securise Superviseur DSI"'}
+    )
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 
 
 def get_temps_restant():
-    """Calcule le temps restant en secondes pour la session en cours."""
-    start_time = session.get("start_time")
-    if not start_time:
+    start = session.get("start_time")
+    if not start:
         return TEMPS_TOTAL_SECONDES
-    ecoule = int(time.time() - start_time)
-    restant = TEMPS_TOTAL_SECONDES - ecoule
-    return max(0, restant)
+    ecoule = int(time.time() - start)
+    return max(0, TEMPS_TOTAL_SECONDES - ecoule)
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         session.clear()
-        session["joueur"] = request.form.get("joueur", "").strip() or "Agent Secret"
-        session["service"] = request.form.get("service", "").strip() or "Direction Générale"
+        session["joueur"] = request.form.get("joueur", "").strip() or "Agent Inconnu"
+        session["service"] = request.form.get("service") or SERVICES_MUNICIPAUX[0]
         session["start_time"] = time.time()
         session["indices"] = {}
+        session["erreurs"] = 0
         return redirect(url_for("enigme1"))
-    return render_template("index.html")
+    return render_template("index.html", services=SERVICES_MUNICIPAUX)
 
 
 # ------------------------------------------------------------------
-# ÉNIGME 1 : HAMEÇONNAGE & SURVOL D'URL (Indice : 7)
+# ÉNIGME 1 : DÉTECTION AVANCÉE SPF/DKIM & ANALYSE D'EN-TÊTE
 # ------------------------------------------------------------------
 @app.route("/enigme-1", methods=["GET", "POST"])
 def enigme1():
@@ -46,26 +141,28 @@ def enigme1():
     success = False
 
     if request.method == "POST":
-        choix = request.form.get("choix_email")
-        if choix == "email_2":
+        reponse = request.form.get("email_analyse")
+        # Le mail frauduleux est le C : usurpation d'adresse avec DKIM/SPF 'fail'
+        if reponse == "mail_c":
             success = True
-            session["indices"]["1"] = "7"
+            session["indices"]["1"] = "8"
             session.modified = True
-            feedback = "Analyse exacte ! L'URL cachée pointait vers un domaine malveillant (.ru). Premier chiffre déverrouillé : 7."
+            feedback = "Excellente analyse d'en-tête ! Le faux expéditeur imitait la DGFIP mais l'en-tête technique indiquait 'SPF: FAIL' et une IP relais en Moldavie. Premier chiffre déverrouillé : 8."
         else:
-            feedback = "Erreur d'analyse. Ce courriel est légitime. Examinez attentivement l'adresse réelle au survol du lien."
+            session["erreurs"] = session.get("erreurs", 0) + 1
+            feedback = "Erreur ! Regardez attentivement les signatures cryptographiques SPF et DKIM dans les en-têtes bruts."
 
     return render_template(
         "enigme1.html",
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indice="7" if success else None
+        indices=session.get("indices", {})
     )
 
 
 # ------------------------------------------------------------------
-# ÉNIGME 2 : ROBUSTESSE DU MOT DE PASSE (Indice : 4)
+# ÉNIGME 2 : ATTAQUE PAR DICTIONNAIRE & ROBUSTESSE
 # ------------------------------------------------------------------
 @app.route("/enigme-2", methods=["GET", "POST"])
 def enigme2():
@@ -76,27 +173,28 @@ def enigme2():
     success = False
 
     if request.method == "POST":
-        choix_mdp = request.form.get("choix_mdp")
-        # Le bon mot de passe respecte les critères ANSSI/CNIL (longueur >= 12, diversité, pas d'infos persos)
-        if choix_mdp == "mdp_3":
+        reponse = request.form.get("pass_analyse")
+        # Le mot de passe B utilise une phrase de passe avec forte entropie (> 80 bits) et substitution non conventionnelle
+        if reponse == "pass_b":
             success = True
-            session["indices"]["2"] = "4"
+            session["indices"]["2"] = "3"
             session.modified = True
-            feedback = "Coffre déverrouillé ! Ce mot de passe est robuste (14 caractères, 4 types de caractères, sans mot du dictionnaire). Deuxième chiffre déverrouillé : 4."
+            feedback = "Code validé ! La phrase de passe 'Ch@teau-Nogent*95290#Volee' possède une entropie supérieure à 85 bits, résistant aux attaques par masque et dictionnaires hybrides. Deuxième chiffre déverrouillé : 3."
         else:
-            feedback = "Accès refusé ! Ce mot de passe présente une faiblesse (trop court, date prévisible ou combinaison séquentielle)."
+            session["erreurs"] = session.get("erreurs", 0) + 1
+            feedback = "Échec d'authentification ! Le mot de passe sélectionné repose sur des substitutions basiques ('a' -> '@', 'e' -> '3') vulnérables aux dictionnaires d'attaque modernes."
 
     return render_template(
         "enigme2.html",
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indice="4" if success else None
+        indices=session.get("indices", {})
     )
 
 
 # ------------------------------------------------------------------
-# ÉNIGME 3 : DÉTECTION DU CHEVAL DE TROIE (Indice : 9)
+# ÉNIGME 3 : CHEVAL DE TROIE, MACROS & CARACTÈRES INVISIBLES (RTLO)
 # ------------------------------------------------------------------
 @app.route("/enigme-3", methods=["GET", "POST"])
 def enigme3():
@@ -107,27 +205,28 @@ def enigme3():
     success = False
 
     if request.method == "POST":
-        choix_fichier = request.form.get("choix_fichier")
-        # Le fichier piégé a une fausse extension double : Facture_Travaux_CTM.pdf.exe
-        if choix_fichier == "fichier_piege":
+        reponse = request.form.get("file_analyse")
+        # Le fichier piégé est le 3 : un fichier .docm avec macro auto-exécutable AutoOpen()
+        if reponse == "file_macro":
             success = True
-            session["indices"]["3"] = "9"
+            session["indices"]["3"] = "6"
             session.modified = True
-            feedback = "Menace neutralisée ! C'était un exécutable (.exe) masqué sous une fausse icône PDF. Troisième chiffre déverrouillé : 9."
+            feedback = "Piège neutralisé ! Le document contenait une macro VBA obfusquée téléchargeant une charge utile PowerShell en arrière-plan. Troisième chiffre déverrouillé : 6."
         else:
-            feedback = "Mauvais fichier ciblé ! Ce document est sain. Analysez scrupuleusement l'extension complète des fichiers."
+            session["erreurs"] = session.get("erreurs", 0) + 1
+            feedback = "Alerte : ce document est un fichier bureautique standard sans risque d'exécution de code."
 
     return render_template(
         "enigme3.html",
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indice="9" if success else None
+        indices=session.get("indices", {})
     )
 
 
 # ------------------------------------------------------------------
-# ÉNIGME 4 : PROCÉDURE RÉFLEXE DSI (Indice : 2)
+# ÉNIGME 4 : ISOLATION DU RÉSEAU & PROCÉDURE FORENSIQUE
 # ------------------------------------------------------------------
 @app.route("/enigme-4", methods=["GET", "POST"])
 def enigme4():
@@ -138,27 +237,28 @@ def enigme4():
     success = False
 
     if request.method == "POST":
-        reflexe = request.form.get("choix_reflexe")
-        # Bonne pratique : isoler le poste du réseau et contacter immédiatement le service informatique
-        if reflexe == "action_isoler":
+        reponse = request.form.get("incident_action")
+        # Seule la procédure 2 préserve la mémoire volatile (RAM) tout en stoppant net le mouvement latéral
+        if reponse == "action_forensique":
             success = True
-            session["indices"]["4"] = "2"
+            session["indices"]["4"] = "1"
             session.modified = True
-            feedback = "Protocole respecté ! Déconnecter le câble réseau / Wi-Fi coupe la propagation du rançongiciel sans éteindre le poste pour l'analyse forensique. Quatrième chiffre : 2."
+            feedback = "Procédure DSI exemplaire ! Déconnexion immédiate des interfaces réseau (RJ45/Wi-Fi) sans éteindre le poste pour conserver les artefacts en mémoire RAM. Quatrième chiffre déverrouillé : 1."
         else:
-            feedback = "Procédure incorrecte. Cette action risque de propager l'infection ou d'effacer les preuves volatiles en mémoire RAM."
+            session["erreurs"] = session.get("erreurs", 0) + 1
+            feedback = "Procédure non conforme. Éteindre le poste supprime les données de mémoire vive indispensables à l'analyse judiciaire (artefacts RAM)."
 
     return render_template(
         "enigme4.html",
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indice="2" if success else None
+        indices=session.get("indices", {})
     )
 
 
 # ------------------------------------------------------------------
-# TERMINAL FINAL : DÉCHIFFREMENT DU CODE MAÎTRE
+# TERMINAL FINAL DE DÉCHIFFREMENT & ENREGISTREMENT BDD
 # ------------------------------------------------------------------
 @app.route("/victoire", methods=["GET", "POST"])
 def victoire():
@@ -168,24 +268,98 @@ def victoire():
     feedback = None
     reussi = False
 
-    if request.method == "POST":
-        code_saisi = request.form.get("code_final", "").strip()
-        if code_saisi == CODE_FINAL_CORRECT:
-            reussi = True
-        else:
-            feedback = "Code de déchiffrement invalide. Rassemblez les 4 chiffres trouvés dans les énigmes précédentes."
-
     temps_pris = int(time.time() - session.get("start_time", time.time()))
     minutes = temps_pris // 60
     secondes = temps_pris % 60
+    temps_formate = f"{minutes:02d}m {secondes:02d}s"
+
+    if request.method == "POST":
+        code = request.form.get("code_master", "").strip()
+        if code == CODE_FINAL_CORRECT:
+            reussi = True
+            # Enregistrement en base de données
+            conn = get_db()
+            cursor = conn.cursor()
+            query = """
+                INSERT INTO escape_scores (agent_nom, service, statut, erreurs, temps_ecoule)
+                VALUES (%s, %s, %s, %s, %s)
+            """ if DATABASE_URL else """
+                INSERT INTO escape_scores (agent_nom, service, statut, erreurs, temps_ecoule)
+                VALUES (?, ?, ?, ?, ?)
+            """
+            cursor.execute(query, (
+                session.get("joueur"),
+                session.get("service"),
+                "Victoire (Système Débloqué)",
+                session.get("erreurs", 0),
+                temps_formate
+            ))
+            conn.commit()
+            conn.close()
+        else:
+            session["erreurs"] = session.get("erreurs", 0) + 1
+            feedback = "Code incorrect. Assemblez les 4 chiffres dans l'ordre strict des énigmes (1 à 4)."
 
     return render_template(
         "victoire.html",
         feedback=feedback,
         reussi=reussi,
-        temps_formate=f"{minutes:02d}m {secondes:02d}s",
+        temps_formate=temps_formate,
         indices=session.get("indices", {})
     )
+
+
+# ------------------------------------------------------------------
+# TABLEAU DE BORD ADMIN / SUPERVISEUR DSI
+# ------------------------------------------------------------------
+@app.route("/admin/scores")
+@requires_auth
+def admin_scores():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM escape_scores ORDER BY id DESC")
+    scores = cursor.fetchall()
+
+    cursor.execute("SELECT COUNT(*) FROM escape_scores")
+    total_participants = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT service, COUNT(*) as nb_succes
+        FROM escape_scores 
+        GROUP BY service 
+        ORDER BY nb_succes DESC
+    """)
+    stats_services = cursor.fetchall()
+    conn.close()
+
+    return render_template(
+        "admin_escape.html",
+        scores=scores,
+        total_participants=total_participants,
+        stats_services=stats_services
+    )
+
+
+@app.route("/admin/export-csv")
+@requires_auth
+def export_csv():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, agent_nom, service, statut, erreurs, temps_ecoule, date_passage FROM escape_scores ORDER BY id DESC")
+    lignes = cursor.fetchall()
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["ID", "Nom de l'agent", "Service", "Statut", "Erreurs commises", "Temps écoulé", "Date"])
+
+    for l in lignes:
+        writer.writerow(list(l))
+
+    reponse = make_response(output.getvalue().encode("utf-8-sig"))
+    reponse.headers["Content-Disposition"] = "attachment; filename=resultats_escape_game_dsi.csv"
+    reponse.headers["Content-Type"] = "text/csv; charset=utf-8"
+    return reponse
 
 
 if __name__ == "__main__":
