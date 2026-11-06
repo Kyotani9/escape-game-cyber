@@ -5,8 +5,8 @@ import csv
 from datetime import datetime
 from functools import wraps
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 from flask import Flask, render_template, request, redirect, url_for, session, Response, make_response
 
 app = Flask(__name__)
@@ -44,11 +44,10 @@ CODE_FINAL_CORRECT = "8361"
 
 def get_db():
     if DATABASE_URL:
-        # Prise en charge de postgresql:// (correction du protocole postgres:// de Render)
         uri = DATABASE_URL
         if uri.startswith("postgres://"):
             uri = uri.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(uri)
+        conn = psycopg.connect(uri)
         return conn
     else:
         conn = sqlite3.connect("escape_resultats.db")
