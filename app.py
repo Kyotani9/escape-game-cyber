@@ -20,18 +20,32 @@ TEMPS_TOTAL_SECONDES = 25 * 60
 
 # Liste officielle des services municipaux
 SERVICES_MUNICIPAUX = [
-    "Direction Générale des Services (DGS)",
-    "Direction des Systèmes d'Information (DSI)",
-    "Ressources Humaines",
-    "Finances & Comptabilité",
-    "Services Techniques & CTM",
-    "Urbanisme & Aménagement",
-    "État Civil & Affaires Générales",
-    "Police Municipale",
-    "Enfance, Jeunesse & Scolaire",
-    "Culture & Événementiel",
-    "Centre Communal d'Action Sociale (CCAS)",
-    "Communication"
+    SERVICES_MUNICIPAUX = [
+    "Accueil Castelrose",
+    "Accueil hôtel de ville",
+    "Adjoints & conseillers délégués",
+    "Bibliothèque",
+    "Cabinet du maire",
+    "CCAS",
+    "Communication - fêtes - associations",
+    "CTM",
+    "Direction générale des services",
+    "Direction service technique",
+    "Enfance - Petite enfance - Affaires scolaires",
+    "Espace culturel",
+    "Espaces verts",
+    "Marchés publics & assurances",
+    "Multi-accueils & jeunesse",
+    "Musée",
+    "Police municipale",
+    "Population - Etat civil - Elections",
+    "Service des sports",
+    "Service Financier",
+    "Service informatique",
+    "Service RH",
+    "Service voirie",
+    "Urbanisme"
+]
 ]
 
 # Les 4 indices secrets à débloquer :
