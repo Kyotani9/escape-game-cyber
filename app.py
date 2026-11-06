@@ -45,7 +45,6 @@ SERVICES_MUNICIPAUX = [
     "Service voirie",
     "Urbanisme"
 ]
-]
 
 # Les 4 indices secrets à débloquer :
 # Énigme 1 -> 8 (Analyse d'en-tête SPF/DKIM)
