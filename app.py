@@ -14,13 +14,12 @@ app.secret_key = os.environ.get("SECRET_KEY", "escape_game_cle_secrete_adam_2026
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "CyberAdam2026!")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "D122noel")
 
 TEMPS_TOTAL_SECONDES = 25 * 60
 
 # Liste officielle des services municipaux
 SERVICES_MUNICIPAUX = [
-    SERVICES_MUNICIPAUX = [
     "Accueil Castelrose",
     "Accueil hôtel de ville",
     "Adjoints & conseillers délégués",
