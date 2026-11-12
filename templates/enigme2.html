@@ -2,58 +2,57 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Énigme 2 — Résistance aux Attaques par Dictionnaire</title>
+    <title>Énigme 2 — Sécurité des Mots de Passe</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 25px; display: flex; justify-content: center; }
         .container { max-width: 850px; width: 100%; background: #1e293b; border-radius: 10px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .top-bar { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
-        .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; }
-        .pwd-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .pwd-text { font-family: monospace; font-size: 16px; color: #38bdf8; font-weight: bold; }
-        .pwd-details { font-size: 12.5px; color: #94a3b8; margin-top: 4px; }
-        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
+        .step-title { font-size: 18px; font-weight: bold; color: #60a5fa; }
+        .timer-badge { background: #b91c1c; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; line-height: 1.5; }
+        .rules-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13.5px; color: #cbd5e1; }
+        .rules-box ul { margin: 8px 0 0 18px; padding: 0; line-height: 1.6; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #f1f5f9; }
+        .input-group input[type="text"] { width: 100%; padding: 12px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-size: 16px; font-family: monospace; }
+        .input-group input[type="text"]:focus { outline: none; border-color: #3b82f6; }
+        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn-submit:hover { background: #1d4ed8; }
+        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
+        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
         .btn-next { display: inline-block; margin-top: 15px; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="top-bar">
-            <strong>Énigme 2/4 : Résistance cryptographique des mots de passe</strong>
-            <span style="color: #f87171; font-weight: bold;">Temps restant : {{ temps_restant // 60 }}m</span>
+            <span class="step-title">Énigme 2 sur 4 — Création d'un mot de passe robuste</span>
+            <span class="timer-badge">Temps restant : {{ (temps_restant // 60) }}m {{ (temps_restant % 60) }}s</span>
         </div>
+
         <div class="context-box">
-            <strong>Mission :</strong> Les outils d'attaque automatisée (Hashcat/John The Ripper) utilisent des règles de substitution courantes appelées <em>leet speak</em> (ex: a=&commat;, e=3). Identifiez le seul mot de passe qui résiste réellement à une attaque par dictionnaire étendu.
+            Suite à l'incident détecté sur le poste de l'État Civil, la politique de sécurité exige que vous créiez un nouveau mot de passe conforme aux recommandations de l'ANSSI (Agence Nationale de la Sécurité des Systèmes d'Information).
         </div>
+
+        <div class="rules-box">
+            <strong>Critères exigés pour valider le nouveau mot de passe :</strong>
+            <ul>
+                <li>Contenir au moins <strong>12 caractères</strong>.</li>
+                <li>Contenir au moins une <strong>majuscule</strong> (A-Z) et une <strong>minuscule</strong> (a-z).</li>
+                <li>Contenir au moins un <strong>chiffre</strong> (0-9) et un <strong>caractère spécial</strong> (!, @, #, $, %, &, *, ?, -...).</li>
+                <li>Ne contenir aucun mot évident lié à la collectivité ou trop courant (<em>mairie, adam, azerty, 1234, 2026</em>).</li>
+            </ul>
+        </div>
+
         <form method="POST">
-            <label class="pwd-card">
-                <div>
-                    <div class="pwd-text">P&#64;ssw0rd2026!</div>
-                    <div class="pwd-details">Mot du dictionnaire avec substitutions leet basiques (cassable en moins d'une seconde par brute-force ciblé).</div>
-                </div>
-                <input type="radio" name="pass_analyse" value="pass_a" required>
-            </label>
-
-            <label class="pwd-card">
-                <div>
-                    <div class="pwd-text">Ch&#64;teau-Nogent*95290#Volee</div>
-                    <div class="pwd-details">Passphrase de 26 caractères composée de 4 segments non prédictibles (entropie calculée : 92 bits).</div>
-                </div>
-                <input type="radio" name="pass_analyse" value="pass_b" required>
-            </label>
-
-            <label class="pwd-card">
-                <div>
-                    <div class="pwd-text">Mairie95290Adam!</div>
-                    <div class="pwd-details">Concaténation de données publiques locales et code postal (vulnérable aux masques régionaux).</div>
-                </div>
-                <input type="radio" name="pass_analyse" value="pass_c" required>
-            </label>
+            <div class="input-group">
+                <label for="mdp_test">Saisissez un exemple de mot de passe robuste (exemple : <em>MonChien@Plage94!</em>) :</label>
+                <input type="text" id="mdp_test" name="mdp_test" placeholder="Tapez votre mot de passe test ici..." required autocomplete="off">
+            </div>
 
             {% if not success %}
-                <button type="submit" class="btn-submit">Valider la sélection</button>
+                <button type="submit" class="btn-submit">Tester la robustesse du mot de passe</button>
             {% endif %}
         </form>
 
@@ -61,7 +60,7 @@
             <div class="{{ 'feedback-success' if success else 'feedback-error' }}">
                 {{ feedback }}
                 {% if success %}
-                    <br><a href="/enigme-3" class="btn-next">Passer à l'Énigme 3 (Macros & Exécutables furtifs) →</a>
+                    <br><a href="/enigme-3" class="btn-next">Passer à l'Énigme 3 (Fichiers & Pièces Jointes) →</a>
                 {% endif %}
             </div>
         {% endif %}

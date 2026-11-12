@@ -211,7 +211,7 @@ def enigme2():
     success = False
 
     if request.method == "POST":
-        mdp = request.form.get("mdp_test", "")
+        mdp = request.form.get("mdp_test", "").strip()
         has_len = len(mdp) >= 12
         has_upper = any(c.isupper() for c in mdp)
         has_lower = any(c.islower() for c in mdp)
@@ -226,7 +226,20 @@ def enigme2():
             feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Deuxième chiffre déverrouillé : 3."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Mot de passe insuffisant : il doit contenir au moins 12 caractères, une majuscule, une minuscule, un chiffre, un caractère spécial, et éviter tout mot évident (mairie, adam, azerty, 1234, 2026)."
+            manquants = []
+            if not has_len:
+                manquants.append("12 caractères minimum")
+            if not has_upper:
+                manquants.append("une majuscule")
+            if not has_lower:
+                manquants.append("une minuscule")
+            if not has_digit:
+                manquants.append("un chiffre")
+            if not has_special:
+                manquants.append("un caractère spécial")
+            if not no_forbidden:
+                manquants.append("aucun mot interdit (mairie, adam, azerty, 1234, 2026)")
+            feedback = "Mot de passe insuffisant. Critère(s) manquant(s) : " + ", ".join(manquants) + "."
 
     return render_template(
         "enigme2.html",
@@ -334,7 +347,7 @@ def victoire():
 
 @app.route("/admin/scores")
 @requires_auth
-def admin_escape():
+def admin_scores():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY id DESC")
