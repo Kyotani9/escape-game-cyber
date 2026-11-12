@@ -139,6 +139,9 @@ def index():
         return redirect(url_for("enigme1"))
     return render_template("index.html", services=SERVICES_MUNICIPAUX)
 
+@app.route("/ping")
+def ping():
+    return "OK", 200
 
 # ------------------------------------------------------------------
 # ÉNIGME 1 : DÉTECTION AVANCÉE SPF/DKIM & ANALYSE D'EN-TÊTE
