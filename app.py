@@ -161,10 +161,10 @@ def enigme1():
             success = True
             session["indices"]["1"] = "8"
             session.modified = True
-            feedback = "Excellente analyse d'en-tête ! Le faux expéditeur imitait la DGFIP mais l'en-tête technique indiquait 'SPF: FAIL' et une IP relais en Moldavie. Premier chiffre déverrouillé : 8."
+            feedback = "Bonne analyse ! Écrire un mot de passe sur un post-it (même caché sous un clavier) ou partager ses identifiants permet à n'importe qui d'usurper votre compte. Chaque agent doit utiliser son propre accès personnel. Premier chiffre déverrouillé : 8."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Erreur ! Regardez attentivement les signatures cryptographiques SPF et DKIM dans les en-têtes bruts."
+            feedback = "Ce comportement respecte les bonnes pratiques de sécurité. Cherchez l'action qui expose directement un accès nominatif à des tiers."
 
     return render_template(
         "enigme1.html",

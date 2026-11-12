@@ -2,48 +2,73 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Énigme 4 — Gestion d'Incident & Preuves</title>
+    <title>Énigme 4 — Réaction en Cas d'Incident</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 25px; display: flex; justify-content: center; }
         .container { max-width: 850px; width: 100%; background: #1e293b; border-radius: 10px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .top-bar { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
-        .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; }
-        .choice-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .choice-desc { font-size: 13.5px; color: #cbd5e1; line-height: 1.5; }
-        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
+        .step-title { font-size: 18px; font-weight: bold; color: #60a5fa; }
+        .timer-badge { background: #b91c1c; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .alert-screen { background: #450a0a; border: 2px solid #dc2626; border-radius: 8px; padding: 20px; margin-bottom: 22px; text-align: center; }
+        .alert-title { font-size: 19px; font-weight: bold; color: #f87171; margin-bottom: 8px; }
+        .alert-text { font-size: 14px; color: #fecaca; line-height: 1.5; }
+        .options-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+        .option-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: normal; color: #e2e8f0; line-height: 1.45; }
+        .option-item:hover { border-color: #3b82f6; }
+        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn-submit:hover { background: #1d4ed8; }
+        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
+        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
         .btn-next { display: inline-block; margin-top: 15px; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="top-bar">
-            <strong>Énigme 4/4 : Chaîne de réaction à incident (PSSI)</strong>
-            <span style="color: #f87171; font-weight: bold;">Temps restant : {{ temps_restant // 60 }}m</span>
+            <span class="step-title">Énigme 4 sur 4 — Protocole d'urgence cyber</span>
+            <span class="timer-badge">Temps restant : {{ (temps_restant // 60) }}m {{ (temps_restant % 60) }}s</span>
         </div>
-        <div class="context-box">
-            <strong>Alerte Rançongiciel :</strong> Un poste du réseau local commence à afficher des extensions de fichiers chiffrées en <code>.locked</code>. Quelle action immédiate prescrit la PSSI afin de limiter l'attaque sans entraver l'enquête judiciaire ?
+
+        <div class="alert-screen">
+            <div class="alert-title">ALERTE : VOS FICHIERS SONT EN COURS DE CHIFFREMENT !</div>
+            <div class="alert-text">
+                Un écran rouge vient d'apparaître sur votre ordinateur professionnel après l'ouverture d'une pièce jointe. Vos dossiers partagés deviennent illisibles les uns après les autres et une demande de rançon s'affiche.
+            </div>
         </div>
+
         <form method="POST">
-            <label class="choice-card">
-                <div class="choice-desc">1. Couper le disjoncteur général ou forcer l'extinction du PC avec le bouton d'alimentation.</div>
-                <input type="radio" name="incident_action" value="action_hard_reboot" required>
-            </label>
+            <p style="font-size: 14.5px; color: #cbd5e1; margin-bottom: 14px;">Quelle est la toute première réaction à adopter pour stopper la propagation au reste de la mairie ?</p>
 
-            <label class="choice-card">
-                <div class="choice-desc">2. Déconnecter physiquement le câble réseau Ethernet (RJ45) / désactiver le Wi-Fi, <strong>laisser l'ordinateur allumé</strong> et contacter la DSI.</div>
-                <input type="radio" name="incident_action" value="action_forensique" required>
-            </label>
+            <div class="options-list">
+                <label class="option-item">
+                    <input type="checkbox" name="actions" value="eteindre" style="margin-top: 3px;">
+                    <span>Éteindre immédiatement l'ordinateur en maintenant le bouton d'alimentation appuyé pour effacer le virus de la mémoire.</span>
+                </label>
 
-            <label class="choice-card">
-                <div class="choice-desc">3. Exécuter un antivirus grand public téléchargé depuis un autre poste pour tenter de nettoyer les fichiers chiffrés.</div>
-                <input type="radio" name="incident_action" value="action_antivirus" required>
-            </label>
+                <label class="option-item">
+                    <input type="checkbox" name="actions" value="debrancher" style="margin-top: 3px;">
+                    <span>Débrancher le câble réseau (Ethernet) et couper le Wi-Fi de l'ordinateur sans l'éteindre.</span>
+                </label>
+
+                <label class="option-item">
+                    <input type="checkbox" name="actions" value="prevenir" style="margin-top: 3px;">
+                    <span>Prévenir immédiatement le service informatique par téléphone (depuis un fixe ou un mobile) sans envoyer d'e-mail depuis le poste infecté.</span>
+                </label>
+
+                <label class="option-item">
+                    <input type="checkbox" name="actions" value="payer" style="margin-top: 3px;">
+                    <span>Suivre les instructions à l'écran pour contacter les pirates afin de récupérer la clé de déchiffrement des dossiers communaux.</span>
+                </label>
+
+                <label class="option-item">
+                    <input type="checkbox" name="actions" value="cle_usb" style="margin-top: 3px;">
+                    <span>Brancher rapidement un disque dur externe ou une clé USB pour essayer de sauvegarder les fichiers qui ne sont pas encore bloqués.</span>
+                </label>
+            </div>
 
             {% if not success %}
-                <button type="submit" class="btn-submit">Valider le réflexe de sécurité</button>
+                <button type="submit" class="btn-submit">Appliquer le protocole d'urgence</button>
             {% endif %}
         </form>
 
@@ -51,7 +76,7 @@
             <div class="{{ 'feedback-success' if success else 'feedback-error' }}">
                 {{ feedback }}
                 {% if success %}
-                    <br><a href="/victoire" class="btn-next">Accéder au Terminal de Déchiffrement Final →</a>
+                    <br><a href="/coffre" class="btn-next">Accéder au Coffre Final (Saisir le code à 4 chiffres) →</a>
                 {% endif %}
             </div>
         {% endif %}

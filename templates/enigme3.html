@@ -2,58 +2,75 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Énigme 3 — Analyse de Charge Furtive</title>
+    <title>Énigme 3 — Fichiers & Pièces Jointes</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 25px; display: flex; justify-content: center; }
         .container { max-width: 850px; width: 100%; background: #1e293b; border-radius: 10px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .top-bar { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
-        .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; }
-        .file-row { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .file-meta { font-family: monospace; font-size: 13.5px; color: #38bdf8; }
-        .file-inspect { font-size: 12px; color: #94a3b8; margin-top: 4px; }
-        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; }
-        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
+        .step-title { font-size: 18px; font-weight: bold; color: #60a5fa; }
+        .timer-badge { background: #b91c1c; color: white; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .context-box { background: #0f172a; padding: 15px; border-radius: 6px; font-size: 14px; color: #cbd5e1; margin-bottom: 20px; border-left: 4px solid #3b82f6; line-height: 1.5; }
+        .files-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+        .file-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; cursor: pointer; transition: border-color 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .file-item:hover { border-color: #3b82f6; }
+        .file-name { font-family: monospace; font-size: 14.5px; color: #38bdf8; font-weight: bold; }
+        .file-desc { font-size: 13px; color: #94a3b8; margin-top: 5px; }
+        .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn-submit:hover { background: #1d4ed8; }
+        .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
+        .feedback-success { background: #064e3b; border: 1px solid #059669; color: #a7f3d0; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
         .btn-next { display: inline-block; margin-top: 15px; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="top-bar">
-            <strong>Énigme 3/4 : Inspection de binaires et scripts</strong>
-            <span style="color: #f87171; font-weight: bold;">Temps restant : {{ temps_restant // 60 }}m</span>
+            <span class="step-title">Énigme 3 sur 4 — Vérification des pièces jointes</span>
+            <span class="timer-badge">Temps restant : {{ (temps_restant // 60) }}m {{ (temps_restant % 60) }}s</span>
         </div>
+
         <div class="context-box">
-            <strong>Scénario :</strong> Plusieurs fichiers ont été extraits d'une clé USB inconnue branchée sur un poste d'accueil. Quel fichier contient le vecteur d'exécution capable de compromettre la session utilisateur ?
+            Quatre fichiers ont été déposés dans un dossier de transfert commun. Observez attentivement le nom complet et l'extension de chacun d'eux : lequel est un programme camouflé susceptible d'infecter le poste de travail ?
         </div>
+
         <form method="POST">
-            <label class="file-row">
-                <div>
-                    <div class="file-meta">📄 Arrete_Municipal_Circulation.pdf</div>
-                    <div class="file-inspect">Format PDF standard, analyse VirusTotal 0/72, aucun JavaScript incorporé.</div>
-                </div>
-                <input type="radio" name="file_analyse" value="file_pdf" required>
-            </label>
+            <div class="files-list">
+                <label class="file-item">
+                    <div>
+                        <div class="file-name">📄 Arrete_Circulation_Marche.pdf</div>
+                        <div class="file-desc">Taille : 245 Ko — Modifié aujourd'hui à 09h12</div>
+                    </div>
+                    <input type="radio" name="file_analyse" value="file_pdf" required>
+                </label>
 
-            <label class="file-row">
-                <div>
-                    <div class="file-meta" style="color: #f87171;">📑 Fiche_Evaluation_Poste.docm</div>
-                    <div class="file-inspect">Format Word avec prise en charge de macros. Présence d'un flux binaire VBA : <code>Sub AutoOpen() &gt; Shell("powershell -enc ...")</code>.</div>
-                </div>
-                <input type="radio" name="file_analyse" value="file_macro" required>
-            </label>
+                <label class="file-item">
+                    <div>
+                        <div class="file-name">📄 Facture_Fournitures_CTM.pdf.exe</div>
+                        <div class="file-desc">Taille : 1 420 Ko — Modifié aujourd'hui à 09h18</div>
+                    </div>
+                    <input type="radio" name="file_analyse" value="file_macro" required>
+                </label>
 
-            <label class="file-row">
-                <div>
-                    <div class="file-meta">📊 Releve_Heures_Vacataires.csv</div>
-                    <div class="file-inspect">Fichier texte pur avec séparateur point-virgule, aucune formule dynamique DDE active.</div>
-                </div>
-                <input type="radio" name="file_analyse" value="file_csv" required>
-            </label>
+                <label class="file-item">
+                    <div>
+                        <div class="file-name">📊 Planning_Permanences_Samedi.xlsx</div>
+                        <div class="file-desc">Taille : 88 Ko — Modifié aujourd'hui à 09h25</div>
+                    </div>
+                    <input type="radio" name="file_analyse" value="file_csv" required>
+                </label>
+
+                <label class="file-item">
+                    <div>
+                        <div class="file-name">📝 Compte_Rendu_Reunion_Scolaire.docx</div>
+                        <div class="file-desc">Taille : 112 Ko — Modifié aujourd'hui à 09h40</div>
+                    </div>
+                    <input type="radio" name="file_analyse" value="file_doc" required>
+                </label>
+            </div>
 
             {% if not success %}
-                <button type="submit" class="btn-submit">Neutraliser le fichier vecteur</button>
+                <button type="submit" class="btn-submit">Bloquer ce fichier</button>
             {% endif %}
         </form>
 
@@ -61,7 +78,7 @@
             <div class="{{ 'feedback-success' if success else 'feedback-error' }}">
                 {{ feedback }}
                 {% if success %}
-                    <br><a href="/enigme-4" class="btn-next">Passer à l'Énigme 4 (Protocole de confinement) →</a>
+                    <br><a href="/enigme-4" class="btn-next">Passer à l'Énigme 4 (Réaction face à un incident) →</a>
                 {% endif %}
             </div>
         {% endif %}
