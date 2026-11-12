@@ -14,11 +14,10 @@ app.secret_key = os.environ.get("SECRET_KEY", "escape_game_cle_secrete_adam_2026
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "D122noel")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "CyberAdam2026!")
 
 TEMPS_TOTAL_SECONDES = 25 * 60
 
-# Liste officielle des services municipaux
 SERVICES_MUNICIPAUX = [
     "Accueil Castelrose",
     "Accueil hôtel de ville",
@@ -46,11 +45,6 @@ SERVICES_MUNICIPAUX = [
     "Urbanisme"
 ]
 
-# Les 4 indices secrets à débloquer :
-# Énigme 1 -> 8 (Analyse d'en-tête SPF/DKIM)
-# Énigme 2 -> 3 (Évaluation entropie & hash)
-# Énigme 3 -> 6 (Double extension masquée RTLO / macro malveillante)
-# Énigme 4 -> 1 (Matrice d'isolation & confinement réseau)
 CODE_FINAL_CORRECT = "8361"
 
 
@@ -59,7 +53,7 @@ def get_db():
         uri = DATABASE_URL
         if uri.startswith("postgres://"):
             uri = uri.replace("postgres://", "postgresql://", 1)
-        conn = psycopg.connect(uri)
+        conn = psycopg.connect(uri, row_factory=dict_row)
         return conn
     else:
         conn = sqlite3.connect("escape_resultats.db")
@@ -69,33 +63,33 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    cursor = conn.cursor()
+    cur = conn.cursor()
     if DATABASE_URL:
-        cursor.execute("""
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS escape_scores (
                 id SERIAL PRIMARY KEY,
-                agent_nom VARCHAR(120) NOT NULL,
-                service VARCHAR(120) NOT NULL,
-                statut VARCHAR(50) NOT NULL,
-                erreurs INTEGER DEFAULT 0,
-                temps_ecoule VARCHAR(50) NOT NULL,
-                date_passage TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-    else:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS escape_scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_nom TEXT NOT NULL,
+                date_jeu TEXT NOT NULL,
                 service TEXT NOT NULL,
                 statut TEXT NOT NULL,
-                erreurs INTEGER DEFAULT 0,
-                temps_ecoule TEXT NOT NULL,
-                date_passage TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+                temps_ecoule INTEGER NOT NULL,
+                erreurs INTEGER NOT NULL
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS escape_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_jeu TEXT NOT NULL,
+                service TEXT NOT NULL,
+                statut TEXT NOT NULL,
+                temps_ecoule INTEGER NOT NULL,
+                erreurs INTEGER NOT NULL
+            )
         """)
     conn.commit()
+    cur.close()
     conn.close()
+
 
 init_db()
 
@@ -103,11 +97,14 @@ init_db()
 def check_auth(username, password):
     return username == ADMIN_USER and password == ADMIN_PASSWORD
 
+
 def authenticate():
     return Response(
-        "Accès refusé. Authentification DSI requise.\n", 401,
-        {"WWW-Authenticate": 'Basic realm="Espace Securise Superviseur DSI"'}
+        "Accès restreint — Veuillez vous authentifier.",
+        401,
+        {"WWW-Authenticate": 'Basic realm="Administration Escape Game"'}
     )
+
 
 def requires_auth(f):
     @wraps(f)
@@ -120,32 +117,63 @@ def requires_auth(f):
 
 
 def get_temps_restant():
-    start = session.get("start_time")
-    if not start:
+    debut = session.get("debut_chrono")
+    if not debut:
         return TEMPS_TOTAL_SECONDES
-    ecoule = int(time.time() - start)
-    return max(0, TEMPS_TOTAL_SECONDES - ecoule)
+    ecoule = int(time.time() - debut)
+    restant = TEMPS_TOTAL_SECONDES - ecoule
+    return max(0, restant)
 
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        session.clear()
-        session["joueur"] = request.form.get("joueur", "").strip() or "Agent Inconnu"
-        session["service"] = request.form.get("service") or SERVICES_MUNICIPAUX[0]
-        session["start_time"] = time.time()
-        session["indices"] = {}
-        session["erreurs"] = 0
-        return redirect(url_for("enigme1"))
-    return render_template("index.html", services=SERVICES_MUNICIPAUX)
+def enregistrer_score(statut):
+    if session.get("score_enregistre"):
+        return
+    service = session.get("service", "Non renseigné")
+    debut = session.get("debut_chrono", time.time())
+    temps_ecoule = min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))
+    erreurs = session.get("erreurs", 0)
+    date_jeu = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    conn = get_db()
+    cur = conn.cursor()
+    if DATABASE_URL:
+        cur.execute(
+            "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s)",
+            (date_jeu, service, statut, temps_ecoule, erreurs)
+        )
+    else:
+        cur.execute(
+            "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?)",
+            (date_jeu, service, statut, temps_ecoule, erreurs)
+        )
+    conn.commit()
+    cur.close()
+    conn.close()
+    session["score_enregistre"] = True
+    session.modified = True
+
 
 @app.route("/ping")
 def ping():
     return "OK", 200
 
-# ------------------------------------------------------------------
-# ÉNIGME 1 : DÉTECTION AVANCÉE SPF/DKIM & ANALYSE D'EN-TÊTE
-# ------------------------------------------------------------------
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        service = request.form.get("service")
+        if service:
+            session.clear()
+            session["joueur"] = True
+            session["service"] = service
+            session["debut_chrono"] = time.time()
+            session["erreurs"] = 0
+            session["indices"] = {"1": "?", "2": "?", "3": "?", "4": "?"}
+            session["score_enregistre"] = False
+            return redirect(url_for("enigme1"))
+    return render_template("index.html", services=SERVICES_MUNICIPAUX)
+
+
 @app.route("/enigme-1", methods=["GET", "POST"])
 def enigme1():
     if "joueur" not in session:
@@ -156,7 +184,6 @@ def enigme1():
 
     if request.method == "POST":
         reponse = request.form.get("email_analyse")
-        # Le mail frauduleux est le C : usurpation d'adresse avec DKIM/SPF 'fail'
         if reponse == "mail_c":
             success = True
             session["indices"]["1"] = "8"
@@ -175,9 +202,6 @@ def enigme1():
     )
 
 
-# ------------------------------------------------------------------
-# ÉNIGME 2 : ATTAQUE PAR DICTIONNAIRE & ROBUSTESSE
-# ------------------------------------------------------------------
 @app.route("/enigme-2", methods=["GET", "POST"])
 def enigme2():
     if "joueur" not in session:
@@ -187,16 +211,22 @@ def enigme2():
     success = False
 
     if request.method == "POST":
-        reponse = request.form.get("pass_analyse")
-        # Le mot de passe B utilise une phrase de passe avec forte entropie (> 80 bits) et substitution non conventionnelle
-        if reponse == "pass_b":
+        mdp = request.form.get("mdp_test", "")
+        has_len = len(mdp) >= 12
+        has_upper = any(c.isupper() for c in mdp)
+        has_lower = any(c.islower() for c in mdp)
+        has_digit = any(c.isdigit() for c in mdp)
+        has_special = any(not c.isalnum() for c in mdp)
+        no_forbidden = all(mot not in mdp.lower() for mot in ["mairie", "adam", "azerty", "1234", "2026"])
+
+        if has_len and has_upper and has_lower and has_digit and has_special and no_forbidden:
             success = True
             session["indices"]["2"] = "3"
             session.modified = True
-            feedback = "Code validé ! La phrase de passe 'Ch@teau-Nogent*95290#Volee' possède une entropie supérieure à 85 bits, résistant aux attaques par masque et dictionnaires hybrides. Deuxième chiffre déverrouillé : 3."
+            feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Deuxième chiffre déverrouillé : 3."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Échec d'authentification ! Le mot de passe sélectionné repose sur des substitutions basiques ('a' -> '@', 'e' -> '3') vulnérables aux dictionnaires d'attaque modernes."
+            feedback = "Mot de passe insuffisant : il doit contenir au moins 12 caractères, une majuscule, une minuscule, un chiffre, un caractère spécial, et éviter tout mot évident (mairie, adam, azerty, 1234, 2026)."
 
     return render_template(
         "enigme2.html",
@@ -207,9 +237,6 @@ def enigme2():
     )
 
 
-# ------------------------------------------------------------------
-# ÉNIGME 3 : CHEVAL DE TROIE, MACROS & CARACTÈRES INVISIBLES (RTLO)
-# ------------------------------------------------------------------
 @app.route("/enigme-3", methods=["GET", "POST"])
 def enigme3():
     if "joueur" not in session:
@@ -220,15 +247,14 @@ def enigme3():
 
     if request.method == "POST":
         reponse = request.form.get("file_analyse")
-        # Le fichier piégé est le 3 : un fichier .docm avec macro auto-exécutable AutoOpen()
         if reponse == "file_macro":
             success = True
             session["indices"]["3"] = "6"
             session.modified = True
-            feedback = "Piège neutralisé ! Le document contenait une macro VBA obfusquée téléchargeant une charge utile PowerShell en arrière-plan. Troisième chiffre déverrouillé : 6."
+            feedback = "Bien vu ! Le fichier utilise une double extension (.pdf.exe) pour se faire passer pour un document Acrobat alors qu'il s'agit en réalité d'un programme exécutable malveillant. Troisième chiffre déverrouillé : 6."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Alerte : ce document est un fichier bureautique standard sans risque d'exécution de code."
+            feedback = "Ce fichier est un document bureautique standard sans extension exécutable. Observez attentivement la fin exacte de chaque nom de fichier."
 
     return render_template(
         "enigme3.html",
@@ -239,9 +265,6 @@ def enigme3():
     )
 
 
-# ------------------------------------------------------------------
-# ÉNIGME 4 : ISOLATION DU RÉSEAU & PROCÉDURE FORENSIQUE
-# ------------------------------------------------------------------
 @app.route("/enigme-4", methods=["GET", "POST"])
 def enigme4():
     if "joueur" not in session:
@@ -251,16 +274,16 @@ def enigme4():
     success = False
 
     if request.method == "POST":
-        reponse = request.form.get("incident_action")
-        # Seule la procédure 2 préserve la mémoire volatile (RAM) tout en stoppant net le mouvement latéral
-        if reponse == "action_forensique":
+        actions = request.form.getlist("actions")
+        bonnes_reponses = {"debrancher", "prevenir"}
+        if set(actions) == bonnes_reponses:
             success = True
             session["indices"]["4"] = "1"
             session.modified = True
-            feedback = "Procédure DSI exemplaire ! Déconnexion immédiate des interfaces réseau (RJ45/Wi-Fi) sans éteindre le poste pour conserver les artefacts en mémoire RAM. Quatrième chiffre déverrouillé : 1."
+            feedback = "Protocole d'urgence parfait ! Isoler le poste du réseau bloque la propagation aux serveurs municipaux, et ne pas l'éteindre permet au service informatique d'analyser l'attaque. Dernier chiffre déverrouillé : 1."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Procédure non conforme. Éteindre le poste supprime les données de mémoire vive indispensables à l'analyse judiciaire (artefacts RAM)."
+            feedback = "Réaction incomplète ou risquée. Il faut isoler le poste du réseau sans l'éteindre, puis alerter le service informatique par téléphone (2 actions exactes à cocher)."
 
     return render_template(
         "enigme4.html",
@@ -271,110 +294,104 @@ def enigme4():
     )
 
 
-# ------------------------------------------------------------------
-# TERMINAL FINAL DE DÉCHIFFREMENT & ENREGISTREMENT BDD
-# ------------------------------------------------------------------
-@app.route("/victoire", methods=["GET", "POST"])
-def victoire():
+@app.route("/coffre", methods=["GET", "POST"])
+def coffre():
     if "joueur" not in session:
         return redirect(url_for("index"))
 
     feedback = None
-    reussi = False
-
-    temps_pris = int(time.time() - session.get("start_time", time.time()))
-    minutes = temps_pris // 60
-    secondes = temps_pris % 60
-    temps_formate = f"{minutes:02d}m {secondes:02d}s"
-
     if request.method == "POST":
-        code = request.form.get("code_master", "").strip()
+        code = request.form.get("code_final", "").strip()
         if code == CODE_FINAL_CORRECT:
-            reussi = True
-            # Enregistrement en base de données
-            conn = get_db()
-            cursor = conn.cursor()
-            query = """
-                INSERT INTO escape_scores (agent_nom, service, statut, erreurs, temps_ecoule)
-                VALUES (%s, %s, %s, %s, %s)
-            """ if DATABASE_URL else """
-                INSERT INTO escape_scores (agent_nom, service, statut, erreurs, temps_ecoule)
-                VALUES (?, ?, ?, ?, ?)
-            """
-            cursor.execute(query, (
-                session.get("joueur"),
-                session.get("service"),
-                "Victoire (Système Débloqué)",
-                session.get("erreurs", 0),
-                temps_formate
-            ))
-            conn.commit()
-            conn.close()
+            enregistrer_score("Réussi")
+            return redirect(url_for("victoire"))
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Code incorrect. Assemblez les 4 chiffres dans l'ordre strict des énigmes (1 à 4)."
+            feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme."
 
     return render_template(
-        "victoire.html",
+        "coffre.html",
         feedback=feedback,
-        reussi=reussi,
-        temps_formate=temps_formate,
+        temps_restant=get_temps_restant(),
         indices=session.get("indices", {})
     )
 
 
-# ------------------------------------------------------------------
-# TABLEAU DE BORD ADMIN / SUPERVISEUR DSI
-# ------------------------------------------------------------------
-@app.route("/admin/scores")
-@requires_auth
-def admin_scores():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM escape_scores ORDER BY id DESC")
-    scores = cursor.fetchall()
-
-    cursor.execute("SELECT COUNT(*) FROM escape_scores")
-    total_participants = cursor.fetchone()[0]
-
-    cursor.execute("""
-        SELECT service, COUNT(*) as nb_succes
-        FROM escape_scores 
-        GROUP BY service 
-        ORDER BY nb_succes DESC
-    """)
-    stats_services = cursor.fetchall()
-    conn.close()
-
+@app.route("/victoire")
+def victoire():
+    if "joueur" not in session:
+        return redirect(url_for("index"))
+    enregistrer_score("Réussi")
+    debut = session.get("debut_chrono", time.time())
+    temps_ecoule = min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))
     return render_template(
-        "admin_escape.html",
-        scores=scores,
-        total_participants=total_participants,
-        stats_services=stats_services
+        "victoire.html",
+        service=session.get("service", ""),
+        temps_ecoule=temps_ecoule,
+        erreurs=session.get("erreurs", 0)
     )
 
 
-@app.route("/admin/export-csv")
+@app.route("/admin/scores")
+@requires_auth
+def admin_escape():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY id DESC")
+    scores = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("admin_escape.html", scores=scores)
+
+
+@app.route("/admin/export")
 @requires_auth
 def export_csv():
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, agent_nom, service, statut, erreurs, temps_ecoule, date_passage FROM escape_scores ORDER BY id DESC")
-    lignes = cursor.fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT id, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY id DESC")
+    scores = cur.fetchall()
+    cur.close()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "Nom de l'agent", "Service", "Statut", "Erreurs commises", "Temps écoulé", "Date"])
+    writer.writerow(["ID", "Date", "Service", "Statut", "Temps (secondes)", "Erreurs"])
+    for row in scores:
+        writer.writerow([row["id"], row["date_jeu"], row["service"], row["statut"], row["temps_ecoule"], row["erreurs"]])
 
-    for l in lignes:
-        writer.writerow(list(l))
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=scores_escape_game_mairie.csv"
+    response.headers["Content-type"] = "text/csv; charset=utf-8"
+    return response
 
-    reponse = make_response(output.getvalue().encode("utf-8-sig"))
-    reponse.headers["Content-Disposition"] = "attachment; filename=resultats_escape_game_dsi.csv"
-    reponse.headers["Content-Type"] = "text/csv; charset=utf-8"
-    return reponse
+
+@app.route("/admin/delete/<int:score_id>", methods=["POST"])
+@requires_auth
+def delete_score(score_id):
+    conn = get_db()
+    cur = conn.cursor()
+    if DATABASE_URL:
+        cur.execute("DELETE FROM escape_scores WHERE id = %s", (score_id,))
+    else:
+        cur.execute("DELETE FROM escape_scores WHERE id = ?", (score_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for("admin_scores"))
+
+
+@app.route("/admin/reset", methods=["POST"])
+@requires_auth
+def reset_scores():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM escape_scores")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for("admin_scores"))
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5001)
+    app.run(debug=True)
