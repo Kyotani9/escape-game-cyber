@@ -252,7 +252,7 @@ def enigme1():
                 session["indices"] = {"1": "?", "2": "?", "3": "?", "4": "?"}
             session["indices"]["1"] = "8"
             session.modified = True
-            feedback = "Bonne analyse ! Écrire un mot de passe sur un post-it (même caché sous un clavier) ou partager ses identifiants permet à n'importe qui d'usurper votre compte. Chaque agent doit utiliser son propre accès personnel. Premier chiffre déverrouillé : 8."
+            feedback = "Bonne analyse ! Écrire un mot de passe sur un post-it (même caché sous un clavier) ou partager ses identifiants permet à n'importe qui d'usurper votre compte. Chaque agent doit utiliser son propre accès personnel. Notez bien ce 1er chiffre pour le coffre final : 8."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
             session.modified = True
@@ -290,7 +290,7 @@ def enigme2():
                 session["indices"] = {"1": "8", "2": "?", "3": "?", "4": "?"}
             session["indices"]["2"] = "3"
             session.modified = True
-            feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Deuxième chiffre déverrouillé : 3."
+            feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Notez bien ce 2e chiffre pour le coffre final : 3."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
             session.modified = True
@@ -334,7 +334,7 @@ def enigme3():
                 session["indices"] = {"1": "8", "2": "3", "3": "?", "4": "?"}
             session["indices"]["3"] = "6"
             session.modified = True
-            feedback = "Bien vu ! Le fichier utilise une double extension (.pdf.exe) pour se faire passer pour un document Acrobat alors qu'il s'agit en réalité d'un programme exécutable malveillant. Troisième chiffre déverrouillé : 6."
+            feedback = "Bien vu ! Le fichier utilise une double extension (.pdf.exe) pour se faire passer pour un document Acrobat alors qu'il s'agit en réalité d'un programme exécutable malveillant. Notez bien ce 3e chiffre pour le coffre final : 6."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
             session.modified = True
@@ -366,11 +366,11 @@ def enigme4():
                 session["indices"] = {"1": "8", "2": "3", "3": "6", "4": "?"}
             session["indices"]["4"] = "1"
             session.modified = True
-            feedback = "Protocole d'urgence parfait ! Isoler le poste du réseau bloque la propagation aux serveurs municipaux, et ne pas l'éteindre permet au service informatique d'analyser l'attaque. Dernier chiffre déverrouillé : 1."
+            feedback = "Protocole d'urgence parfait ! Isoler le poste du réseau bloque la propagation aux serveurs municipaux, et ne pas l'éteindre permet au service informatique d'analyser l'attaque. Notez bien ce 4e et dernier chiffre : 1."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
             session.modified = True
-            feedback = "Réaction incomplète ou risquée. Il faut isoler le poste du réseau sans l'éteindre, puis alerter le service informatique par téléphone (2 actions exactes à cocher)."
+            feedback = "Réaction incomplète ou risquée. Il faut isoler le poste du réseau sans l'éteindre, puis alerter le service informatique par téléphone."
 
     return render_template(
         "enigme4.html",
@@ -388,7 +388,7 @@ def coffre():
 
     indices = session.get("indices")
     if not isinstance(indices, dict):
-        indices = {"1": "8", "2": "3", "3": "6", "4": "1"}
+        indices = {"1": "?", "2": "?", "3": "?", "4": "?"}
 
     feedback = None
     if request.method == "POST":
@@ -400,7 +400,7 @@ def coffre():
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
             session.modified = True
-            feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme (8361)."
+            feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme (vous pouvez cliquer sur les boutons ci-dessus pour revoir les énigmes)."
 
     return render_template(
         "coffre.html",
