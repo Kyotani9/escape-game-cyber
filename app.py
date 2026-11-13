@@ -49,7 +49,6 @@ SERVICES_MUNICIPAUX = [
 CODE_FINAL_CORRECT = "8361"
 
 
-# Affiche l'erreur exacte à l'écran si une exception survient
 @app.errorhandler(500)
 def handle_500(e):
     trace = traceback.format_exc()
@@ -83,6 +82,7 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id SERIAL PRIMARY KEY,
+                    nom TEXT DEFAULT 'Anonyme',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
@@ -90,6 +90,7 @@ def init_db():
                     erreurs INTEGER DEFAULT 0
                 )
             """)
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS nom TEXT DEFAULT 'Anonyme'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT ''")
@@ -99,6 +100,7 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nom TEXT DEFAULT 'Anonyme',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
@@ -106,6 +108,10 @@ def init_db():
                     erreurs INTEGER DEFAULT 0
                 )
             """)
+            try:
+                cur.execute("ALTER TABLE escape_scores ADD COLUMN nom TEXT DEFAULT 'Anonyme'")
+            except Exception:
+                pass
         conn.commit()
         cur.close()
         conn.close()
@@ -150,10 +156,11 @@ def get_temps_restant():
 def enregistrer_score(statut):
     if session.get("score_enregistre"):
         return
+    nom = session.get("nom", "Agent")
     service = session.get("service", "Non renseigné")
     debut = session.get("debut_chrono", time.time())
-    temps_ecoule = min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))
-    erreurs = session.get("erreurs", 0)
+    temps_ecoule = max(1, min(TEMPS_TOTAL_SECONDES, int(time.time() - debut)))
+    erreurs = int(session.get("erreurs", 0))
     date_jeu = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     try:
@@ -161,20 +168,20 @@ def enregistrer_score(statut):
         cur = conn.cursor()
         if DATABASE_URL:
             cur.execute(
-                "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s)",
-                (date_jeu, service, statut, temps_ecoule, erreurs)
+                "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s, %s)",
+                (nom, date_jeu, service, statut, temps_ecoule, erreurs)
             )
         else:
             cur.execute(
-                "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?)",
-                (date_jeu, service, statut, temps_ecoule, erreurs)
+                "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?, ?)",
+                (nom, date_jeu, service, statut, temps_ecoule, erreurs)
             )
         conn.commit()
         cur.close()
         conn.close()
         session["score_enregistre"] = True
         session.modified = True
-    except Exception as e:
+    except Exception:
         print("Erreur lors de l'enregistrement du score :", traceback.format_exc())
 
 
@@ -186,10 +193,12 @@ def ping():
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        nom = (request.form.get("nom") or request.form.get("joueur") or "Agent").strip()
         service = request.form.get("service")
         if service:
             session.clear()
             session["joueur"] = True
+            session["nom"] = nom
             session["service"] = service
             session["debut_chrono"] = time.time()
             session["erreurs"] = 0
@@ -353,7 +362,7 @@ def coffre():
     if request.method == "POST":
         code = (request.form.get("code_final") or request.form.get("code") or "").strip()
         if code == CODE_FINAL_CORRECT:
-            enregistrer_score("Réussi")
+            enregistrer_score("Victoire (Système Débloqué)")
             return redirect(url_for("victoire"))
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
@@ -371,9 +380,9 @@ def coffre():
 def victoire():
     if "joueur" not in session:
         return redirect(url_for("index"))
-    enregistrer_score("Réussi")
+    enregistrer_score("Victoire (Système Débloqué)")
     debut = session.get("debut_chrono", time.time())
-    temps_ecoule = min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))
+    temps_ecoule = max(1, min(TEMPS_TOTAL_SECONDES, int(time.time() - debut)))
     return render_template(
         "victoire.html",
         service=session.get("service", "Non renseigné"),
@@ -387,11 +396,36 @@ def victoire():
 def admin_scores():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY id DESC")
+    cur.execute("SELECT id, nom, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY erreurs ASC, temps_ecoule ASC, id DESC")
     scores = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template("admin_escape.html", scores=scores)
+
+    stats_srv = {}
+    for row in scores:
+        s = row["service"] or "Non renseigné"
+        t = int(row["temps_ecoule"] or 0)
+        err = int(row["erreurs"] or 0)
+        if s not in stats_srv:
+            stats_srv[s] = {"service": s, "participants": 0, "total_erreurs": 0, "meilleur_temps": t}
+        stats_srv[s]["participants"] += 1
+        stats_srv[s]["total_erreurs"] += err
+        if t > 0 and (stats_srv[s]["meilleur_temps"] == 0 or t < stats_srv[s]["meilleur_temps"]):
+            stats_srv[s]["meilleur_temps"] = t
+
+    classement_services = []
+    for s, data in stats_srv.items():
+        moy_err = round(data["total_erreurs"] / data["participants"], 1)
+        classement_services.append({
+            "service": s,
+            "participants": data["participants"],
+            "moyenne_erreurs": moy_err,
+            "meilleur_temps": data["meilleur_temps"]
+        })
+
+    classement_services.sort(key=lambda x: (x["moyenne_erreurs"], x["meilleur_temps"]))
+
+    return render_template("admin_escape.html", scores=scores, classement_services=classement_services)
 
 
 @app.route("/admin/export")
@@ -399,16 +433,16 @@ def admin_scores():
 def export_csv():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY id DESC")
+    cur.execute("SELECT id, nom, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY erreurs ASC, temps_ecoule ASC")
     scores = cur.fetchall()
     cur.close()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "Date", "Service", "Statut", "Temps (secondes)", "Erreurs"])
+    writer.writerow(["ID", "Nom et Prénom", "Service", "Statut", "Erreurs", "Temps (secondes)", "Date de passage"])
     for row in scores:
-        writer.writerow([row["id"], row["date_jeu"], row["service"], row["statut"], row["temps_ecoule"], row["erreurs"]])
+        writer.writerow([row["id"], row["nom"], row["service"], row["statut"], row["erreurs"], row["temps_ecoule"], row["date_jeu"]])
 
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = "attachment; filename=scores_escape_game_mairie.csv"

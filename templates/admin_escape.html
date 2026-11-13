@@ -6,29 +6,34 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 30px; }
-        .container { max-width: 1050px; margin: 0 auto; background: #1e293b; border-radius: 10px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
+        .container { max-width: 1150px; margin: 0 auto; background: #1e293b; border-radius: 10px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 28px; flex-wrap: wrap; gap: 15px; }
         h1 { margin: 0; font-size: 22px; color: #60a5fa; }
+        h2 { font-size: 17px; color: #f1f5f9; margin: 28px 0 12px 0; display: flex; align-items: center; gap: 8px; }
         .actions-bar { display: flex; gap: 12px; align-items: center; }
         .btn-export { background: #10b981; color: white; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; font-size: 14px; }
         .btn-export:hover { background: #059669; }
         .btn-reset { background: #dc2626; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; }
         .btn-reset:hover { background: #b91c1c; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; }
-        th { background: #0f172a; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 12px; }
-        tr:hover { background: #0f172a; }
-        .badge-ok { background: #064e3b; color: #a7f3d0; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; }
-        .btn-del { background: #991b1b; color: #fecaca; border: 1px solid #dc2626; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .table-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; overflow: hidden; margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid #1e293b; }
+        th { background: #090e1a; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(59, 130, 246, 0.06); }
+        .rank-badge { font-weight: bold; color: #facc15; }
+        .badge-ok { background: #064e3b; color: #a7f3d0; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; display: inline-block; }
+        .badge-err { background: #1e3a8a; color: #93c5fd; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px; display: inline-block; }
+        .btn-del { background: #450a0a; color: #fca5a5; border: 1px solid #dc2626; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 600; }
         .btn-del:hover { background: #dc2626; color: white; }
-        .empty-msg { text-align: center; padding: 30px; color: #94a3b8; }
+        .empty-msg { text-align: center; padding: 30px; color: #94a3b8; background: #0f172a; border-radius: 8px; border: 1px solid #334155; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div>
-                <h1>Tableau de Bord — Escape Game Cybersécurité</h1>
+                <h1>🛡️ Tableau de Bord — Escape Game Cybersécurité</h1>
                 <p style="margin: 5px 0 0; font-size: 13px; color: #94a3b8;">Mairie de L'Isle-Adam — Total des participations : {{ scores|length }}</p>
             </div>
             <div class="actions-bar">
@@ -40,35 +45,79 @@
         </div>
 
         {% if scores %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date & Heure</th>
-                        <th>Direction / Service</th>
-                        <th>Statut</th>
-                        <th>Temps réalisé</th>
-                        <th>Erreurs</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in scores %}
-                        {% set t = row['temps_ecoule'] | int %}
+            <!-- Tableau 1 : Classement général des services -->
+            <h2>🏆 Classement général des services</h2>
+            <div class="table-card">
+                <table>
+                    <thead>
                         <tr>
-                            <td>{{ row['date_jeu'] }}</td>
-                            <td><strong>{{ row['service'] }}</strong></td>
-                            <td><span class="badge-ok">{{ row['statut'] }}</span></td>
-                            <td>{{ (t // 60) }}m {{ (t % 60) }}s</td>
-                            <td>{{ row['erreurs'] }}</td>
-                            <td>
-                                <form action="{{ url_for('delete_score', score_id=row['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Supprimer cette entrée ?');">
-                                    <button type="submit" class="btn-del">Supprimer</button>
-                                </form>
-                            </td>
+                            <th>Rang</th>
+                            <th>Service</th>
+                            <th>Participants</th>
+                            <th>Erreurs moyennes</th>
+                            <th>Meilleur temps</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for srv in classement_services %}
+                            {% set bt = srv['meilleur_temps'] | int %}
+                            <tr>
+                                <td>
+                                    {% if loop.index == 1 %}
+                                        <span class="rank-badge">🥇 1</span>
+                                    {% elif loop.index == 2 %}
+                                        <span class="rank-badge">🥈 2</span>
+                                    {% elif loop.index == 3 %}
+                                        <span class="rank-badge">🥉 3</span>
+                                    {% else %}
+                                        <strong>{{ loop.index }}</strong>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ srv['service'] }}</strong></td>
+                                <td>{{ srv['participants'] }}</td>
+                                <td><span class="badge-err">{{ srv['moyenne_erreurs'] }} faute(s)</span></td>
+                                <td><span class="badge-ok">{{ (bt // 60) }}m {{ (bt % 60) }}s</span></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tableau 2 : Classement général du personnel -->
+            <h2>🎖️ Classement général du personnel (par performance)</h2>
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Nom et prénom</th>
+                            <th>Service</th>
+                            <th>Erreurs</th>
+                            <th>Temps réalisé</th>
+                            <th>Date de passage</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in scores %}
+                            {% set t = row['temps_ecoule'] | int %}
+                            <tr>
+                                <td><strong>{{ loop.index }}</strong></td>
+                                <td><strong>{{ row['nom'] if row['nom'] else 'Agent' }}</strong></td>
+                                <td>{{ row['service'] }}</td>
+                                <td><span class="badge-err">{{ row['erreurs'] }} faute(s)</span></td>
+                                <td><span class="badge-ok">{{ (t // 60) }}m {{ (t % 60) }}s</span></td>
+                                <td>{{ row['date_jeu'] if row['date_jeu'] else '—' }}</td>
+                                <td>
+                                    <form action="{{ url_for('delete_score', score_id=row['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Supprimer cette participation ?');">
+                                        <button type="submit" class="btn-del">Supprimer</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% else %}
             <div class="empty-msg">Aucune participation enregistrée pour le moment.</div>
         {% endif %}
