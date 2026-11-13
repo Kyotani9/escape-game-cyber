@@ -9,7 +9,7 @@ from functools import wraps
 import sqlite3
 import psycopg
 from psycopg.rows import dict_row
-from flask import Flask, render_template, request, redirect, url_for, session, Response, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, Response, make_response, send_file
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "escape_game_cle_secrete_adam_2026")
@@ -48,6 +48,19 @@ SERVICES_MUNICIPAUX = [
 ]
 
 CODE_FINAL_CORRECT = "8361"
+
+
+@app.route("/blason_villeIA.png")
+def serve_blason():
+    chemins_possibles = [
+        os.path.join(app.root_path, "static", "blason_villeIA.png"),
+        os.path.join(app.root_path, "blason_villeIA.png"),
+        os.path.join(app.root_path, "templates", "blason_villeIA.png")
+    ]
+    for chemin in chemins_possibles:
+        if os.path.exists(chemin):
+            return send_file(chemin, mimetype="image/png")
+    return "", 404
 
 
 @app.errorhandler(500)
