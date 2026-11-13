@@ -107,6 +107,7 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id SERIAL PRIMARY KEY,
+                    agent_nom TEXT DEFAULT 'Agent',
                     nom TEXT DEFAULT 'Agent',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
@@ -115,16 +116,23 @@ def init_db():
                     erreurs INTEGER DEFAULT 0
                 )
             """)
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS agent_nom TEXT DEFAULT 'Agent'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS nom TEXT DEFAULT 'Agent'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule TEXT DEFAULT '0'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS erreurs INTEGER DEFAULT 0")
+            try:
+                cur.execute("ALTER TABLE escape_scores ALTER COLUMN agent_nom SET DEFAULT 'Agent'")
+                cur.execute("ALTER TABLE escape_scores ALTER COLUMN agent_nom DROP NOT NULL")
+            except Exception:
+                pass
         else:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_nom TEXT DEFAULT 'Agent',
                     nom TEXT DEFAULT 'Agent',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
@@ -189,13 +197,13 @@ def enregistrer_score(statut):
     cur = conn.cursor()
     if DATABASE_URL:
         cur.execute(
-            "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s, %s)",
-            (nom, date_jeu, service, statut, temps_ecoule, erreurs)
+            "INSERT INTO escape_scores (agent_nom, nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (nom, nom, date_jeu, service, statut, temps_ecoule, erreurs)
         )
     else:
         cur.execute(
-            "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?, ?)",
-            (nom, date_jeu, service, statut, temps_ecoule, erreurs)
+            "INSERT INTO escape_scores (agent_nom, nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (nom, nom, date_jeu, service, statut, temps_ecoule, erreurs)
         )
     conn.commit()
     cur.close()
@@ -212,7 +220,7 @@ def ping():
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        nom = (request.form.get("nom") or request.form.get("joueur") or "Agent").strip()
+        nom = (request.form.get("nom") or request.form.get("agent_nom") or request.form.get("joueur") or "Agent").strip()
         service = request.form.get("service")
         if service:
             session.clear()
@@ -434,6 +442,7 @@ def admin_scores():
         row_dict = dict(r)
         nom_val = (
             row_dict.get("nom")
+            or row_dict.get("agent_nom")
             or row_dict.get("nom_agent")
             or row_dict.get("joueur")
             or row_dict.get("participant")
@@ -501,7 +510,7 @@ def export_csv():
     writer.writerow(["ID", "Nom et Prénom", "Service", "Statut", "Erreurs", "Temps", "Date de passage"])
     for r in raw_rows:
         d = dict(r)
-        nom_val = d.get("nom") or d.get("nom_agent") or d.get("joueur") or "Agent"
+        nom_val = d.get("nom") or d.get("agent_nom") or d.get("nom_agent") or d.get("joueur") or "Agent"
         date_val = d.get("date_jeu") or d.get("date_passage") or d.get("date") or ""
         t_fmt = format_seconds(d.get("temps_ecoule") or d.get("temps"))
         writer.writerow([d.get("id"), nom_val, d.get("service", ""), d.get("statut", ""), d.get("erreurs", 0), t_fmt, date_val])
