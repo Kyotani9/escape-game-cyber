@@ -2,6 +2,7 @@ import os
 import time
 import io
 import csv
+import traceback
 from datetime import datetime
 from functools import wraps
 import sqlite3
@@ -48,9 +49,22 @@ SERVICES_MUNICIPAUX = [
 CODE_FINAL_CORRECT = "8361"
 
 
+# Affiche l'erreur exacte à l'écran si une exception survient
+@app.errorhandler(500)
+def handle_500(e):
+    trace = traceback.format_exc()
+    return f"""
+    <div style="background:#0b1120;color:#fecaca;padding:30px;font-family:monospace;">
+        <h2 style="color:#f87171;">Diagnostic Erreur 500 :</h2>
+        <pre style="background:#1e293b;padding:20px;border-radius:8px;overflow-x:auto;color:#38bdf8;">{trace}</pre>
+        <a href="/" style="color:#10b981;">Retour à l'accueil</a>
+    </div>
+    """, 500
+
+
 def get_db():
     if DATABASE_URL:
-        uri = DATABASE_URL
+        uri = DATABASE_URL.strip()
         if uri.startswith("postgres://"):
             uri = uri.replace("postgres://", "postgresql://", 1)
         conn = psycopg.connect(uri, row_factory=dict_row)
@@ -62,38 +76,41 @@ def get_db():
 
 
 def init_db():
-    conn = get_db()
-    cur = conn.cursor()
-    if DATABASE_URL:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS escape_scores (
-                id SERIAL PRIMARY KEY,
-                date_jeu TEXT NOT NULL DEFAULT '',
-                service TEXT NOT NULL DEFAULT '',
-                statut TEXT NOT NULL DEFAULT '',
-                temps_ecoule INTEGER NOT NULL DEFAULT 0,
-                erreurs INTEGER NOT NULL DEFAULT 0
-            )
-        """)
-        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT NOT NULL DEFAULT ''")
-        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT NOT NULL DEFAULT ''")
-        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT NOT NULL DEFAULT ''")
-        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule INTEGER NOT NULL DEFAULT 0")
-        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS erreurs INTEGER NOT NULL DEFAULT 0")
-    else:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS escape_scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date_jeu TEXT NOT NULL,
-                service TEXT NOT NULL,
-                statut TEXT NOT NULL,
-                temps_ecoule INTEGER NOT NULL,
-                erreurs INTEGER NOT NULL
-            )
-        """)
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        if DATABASE_URL:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS escape_scores (
+                    id SERIAL PRIMARY KEY,
+                    date_jeu TEXT DEFAULT '',
+                    service TEXT DEFAULT '',
+                    statut TEXT DEFAULT '',
+                    temps_ecoule INTEGER DEFAULT 0,
+                    erreurs INTEGER DEFAULT 0
+                )
+            """)
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT DEFAULT ''")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT DEFAULT ''")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT ''")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS erreurs INTEGER DEFAULT 0")
+        else:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS escape_scores (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date_jeu TEXT DEFAULT '',
+                    service TEXT DEFAULT '',
+                    statut TEXT DEFAULT '',
+                    temps_ecoule INTEGER DEFAULT 0,
+                    erreurs INTEGER DEFAULT 0
+                )
+            """)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("Erreur init_db:", e)
 
 
 init_db()
@@ -139,23 +156,26 @@ def enregistrer_score(statut):
     erreurs = session.get("erreurs", 0)
     date_jeu = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    conn = get_db()
-    cur = conn.cursor()
-    if DATABASE_URL:
-        cur.execute(
-            "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s)",
-            (date_jeu, service, statut, temps_ecoule, erreurs)
-        )
-    else:
-        cur.execute(
-            "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?)",
-            (date_jeu, service, statut, temps_ecoule, erreurs)
-        )
-    conn.commit()
-    cur.close()
-    conn.close()
-    session["score_enregistre"] = True
-    session.modified = True
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        if DATABASE_URL:
+            cur.execute(
+                "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s)",
+                (date_jeu, service, statut, temps_ecoule, erreurs)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO escape_scores (date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?)",
+                (date_jeu, service, statut, temps_ecoule, erreurs)
+            )
+        conn.commit()
+        cur.close()
+        conn.close()
+        session["score_enregistre"] = True
+        session.modified = True
+    except Exception as e:
+        print("Erreur lors de l'enregistrement du score :", traceback.format_exc())
 
 
 @app.route("/ping")
@@ -191,6 +211,8 @@ def enigme1():
         reponse = request.form.get("email_analyse")
         if reponse == "mail_c":
             success = True
+            if "indices" not in session or not isinstance(session["indices"], dict):
+                session["indices"] = {"1": "?", "2": "?", "3": "?", "4": "?"}
             session["indices"]["1"] = "8"
             session.modified = True
             feedback = "Bonne analyse ! Écrire un mot de passe sur un post-it (même caché sous un clavier) ou partager ses identifiants permet à n'importe qui d'usurper votre compte. Chaque agent doit utiliser son propre accès personnel. Premier chiffre déverrouillé : 8."
@@ -203,7 +225,7 @@ def enigme1():
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indices=session.get("indices", {})
+        indices=session.get("indices", {"1": "?", "2": "?", "3": "?", "4": "?"})
     )
 
 
@@ -226,6 +248,8 @@ def enigme2():
 
         if has_len and has_upper and has_lower and has_digit and has_special and no_forbidden:
             success = True
+            if "indices" not in session or not isinstance(session["indices"], dict):
+                session["indices"] = {"1": "8", "2": "?", "3": "?", "4": "?"}
             session["indices"]["2"] = "3"
             session.modified = True
             feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Deuxième chiffre déverrouillé : 3."
@@ -251,7 +275,7 @@ def enigme2():
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indices=session.get("indices", {})
+        indices=session.get("indices", {"1": "?", "2": "?", "3": "?", "4": "?"})
     )
 
 
@@ -267,6 +291,8 @@ def enigme3():
         reponse = request.form.get("file_analyse")
         if reponse == "file_macro":
             success = True
+            if "indices" not in session or not isinstance(session["indices"], dict):
+                session["indices"] = {"1": "8", "2": "3", "3": "?", "4": "?"}
             session["indices"]["3"] = "6"
             session.modified = True
             feedback = "Bien vu ! Le fichier utilise une double extension (.pdf.exe) pour se faire passer pour un document Acrobat alors qu'il s'agit en réalité d'un programme exécutable malveillant. Troisième chiffre déverrouillé : 6."
@@ -279,7 +305,7 @@ def enigme3():
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indices=session.get("indices", {})
+        indices=session.get("indices", {"1": "?", "2": "?", "3": "?", "4": "?"})
     )
 
 
@@ -296,6 +322,8 @@ def enigme4():
         bonnes_reponses = {"debrancher", "prevenir"}
         if set(actions) == bonnes_reponses:
             success = True
+            if "indices" not in session or not isinstance(session["indices"], dict):
+                session["indices"] = {"1": "8", "2": "3", "3": "6", "4": "?"}
             session["indices"]["4"] = "1"
             session.modified = True
             feedback = "Protocole d'urgence parfait ! Isoler le poste du réseau bloque la propagation aux serveurs municipaux, et ne pas l'éteindre permet au service informatique d'analyser l'attaque. Dernier chiffre déverrouillé : 1."
@@ -308,7 +336,7 @@ def enigme4():
         feedback=feedback,
         success=success,
         temps_restant=get_temps_restant(),
-        indices=session.get("indices", {})
+        indices=session.get("indices", {"1": "?", "2": "?", "3": "?", "4": "?"})
     )
 
 
@@ -317,21 +345,25 @@ def coffre():
     if "joueur" not in session:
         return redirect(url_for("index"))
 
+    indices = session.get("indices")
+    if not isinstance(indices, dict):
+        indices = {"1": "8", "2": "3", "3": "6", "4": "1"}
+
     feedback = None
     if request.method == "POST":
-        code = request.form.get("code_final", "").strip()
+        code = (request.form.get("code_final") or request.form.get("code") or "").strip()
         if code == CODE_FINAL_CORRECT:
             enregistrer_score("Réussi")
             return redirect(url_for("victoire"))
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
-            feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme."
+            feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme (8361)."
 
     return render_template(
         "coffre.html",
         feedback=feedback,
         temps_restant=get_temps_restant(),
-        indices=session.get("indices", {})
+        indices=indices
     )
 
 
@@ -344,7 +376,7 @@ def victoire():
     temps_ecoule = min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))
     return render_template(
         "victoire.html",
-        service=session.get("service", ""),
+        service=session.get("service", "Non renseigné"),
         temps_ecoule=temps_ecoule,
         erreurs=session.get("erreurs", 0)
     )
