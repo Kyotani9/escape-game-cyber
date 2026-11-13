@@ -4,7 +4,7 @@ import time
 import io
 import csv
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 import sqlite3
 import psycopg
@@ -107,7 +107,7 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id SERIAL PRIMARY KEY,
-                    nom TEXT DEFAULT 'Anonyme',
+                    nom TEXT DEFAULT 'Agent',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
@@ -115,7 +115,7 @@ def init_db():
                     erreurs INTEGER DEFAULT 0
                 )
             """)
-            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS nom TEXT DEFAULT 'Anonyme'")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS nom TEXT DEFAULT 'Agent'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT ''")
@@ -125,7 +125,7 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS escape_scores (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nom TEXT DEFAULT 'Anonyme',
+                    nom TEXT DEFAULT 'Agent',
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
@@ -133,10 +133,6 @@ def init_db():
                     erreurs INTEGER DEFAULT 0
                 )
             """)
-            try:
-                cur.execute("ALTER TABLE escape_scores ADD COLUMN nom TEXT DEFAULT 'Anonyme'")
-            except Exception:
-                pass
         conn.commit()
         cur.close()
         conn.close()
@@ -184,30 +180,28 @@ def enregistrer_score(statut):
     nom = session.get("nom", "Agent")
     service = session.get("service", "Non renseigné")
     debut = session.get("debut_chrono", time.time())
-    temps_ecoule = max(1, min(TEMPS_TOTAL_SECONDES, int(time.time() - debut)))
+    temps_ecoule = str(max(1, min(TEMPS_TOTAL_SECONDES, int(time.time() - debut))))
     erreurs = int(session.get("erreurs", 0))
-    date_jeu = datetime.now().strftime("%d/%m/%Y %H:%M")
+    tz_paris = timezone(timedelta(hours=1))
+    date_jeu = datetime.now(tz_paris).strftime("%d/%m/%Y %H:%M")
 
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        if DATABASE_URL:
-            cur.execute(
-                "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s, %s)",
-                (nom, date_jeu, service, statut, temps_ecoule, erreurs)
-            )
-        else:
-            cur.execute(
-                "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?, ?)",
-                (nom, date_jeu, service, statut, temps_ecoule, erreurs)
-            )
-        conn.commit()
-        cur.close()
-        conn.close()
-        session["score_enregistre"] = True
-        session.modified = True
-    except Exception:
-        print("Erreur lors de l'enregistrement du score :", traceback.format_exc())
+    conn = get_db()
+    cur = conn.cursor()
+    if DATABASE_URL:
+        cur.execute(
+            "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (%s, %s, %s, %s, %s, %s)",
+            (nom, date_jeu, service, statut, temps_ecoule, erreurs)
+        )
+    else:
+        cur.execute(
+            "INSERT INTO escape_scores (nom, date_jeu, service, statut, temps_ecoule, erreurs) VALUES (?, ?, ?, ?, ?, ?)",
+            (nom, date_jeu, service, statut, temps_ecoule, erreurs)
+        )
+    conn.commit()
+    cur.close()
+    conn.close()
+    session["score_enregistre"] = True
+    session.modified = True
 
 
 @app.route("/ping")
@@ -229,6 +223,7 @@ def index():
             session["erreurs"] = 0
             session["indices"] = {"1": "?", "2": "?", "3": "?", "4": "?"}
             session["score_enregistre"] = False
+            session.modified = True
             return redirect(url_for("enigme1"))
     return render_template("index.html", services=SERVICES_MUNICIPAUX)
 
@@ -252,6 +247,7 @@ def enigme1():
             feedback = "Bonne analyse ! Écrire un mot de passe sur un post-it (même caché sous un clavier) ou partager ses identifiants permet à n'importe qui d'usurper votre compte. Chaque agent doit utiliser son propre accès personnel. Premier chiffre déverrouillé : 8."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
+            session.modified = True
             feedback = "Ce comportement respecte les bonnes pratiques de sécurité. Cherchez l'action qui expose directement un accès nominatif à des tiers."
 
     return render_template(
@@ -289,6 +285,7 @@ def enigme2():
             feedback = "Mot de passe robuste validé ! Il combine longueur (12+ caractères), complexité et absence de mots devinables. Deuxième chiffre déverrouillé : 3."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
+            session.modified = True
             manquants = []
             if not has_len:
                 manquants.append("12 caractères minimum")
@@ -332,6 +329,7 @@ def enigme3():
             feedback = "Bien vu ! Le fichier utilise une double extension (.pdf.exe) pour se faire passer pour un document Acrobat alors qu'il s'agit en réalité d'un programme exécutable malveillant. Troisième chiffre déverrouillé : 6."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
+            session.modified = True
             feedback = "Ce fichier est un document bureautique standard sans extension exécutable. Observez attentivement la fin exacte de chaque nom de fichier."
 
     return render_template(
@@ -363,6 +361,7 @@ def enigme4():
             feedback = "Protocole d'urgence parfait ! Isoler le poste du réseau bloque la propagation aux serveurs municipaux, et ne pas l'éteindre permet au service informatique d'analyser l'attaque. Dernier chiffre déverrouillé : 1."
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
+            session.modified = True
             feedback = "Réaction incomplète ou risquée. Il faut isoler le poste du réseau sans l'éteindre, puis alerter le service informatique par téléphone (2 actions exactes à cocher)."
 
     return render_template(
@@ -387,10 +386,12 @@ def coffre():
     if request.method == "POST":
         code = (request.form.get("code_final") or request.form.get("code") or "").strip()
         if code == CODE_FINAL_CORRECT:
+            session["score_enregistre"] = False
             enregistrer_score("Victoire (Système Débloqué)")
             return redirect(url_for("victoire"))
         else:
             session["erreurs"] = session.get("erreurs", 0) + 1
+            session.modified = True
             feedback = "Code incorrect. Vérifiez les 4 chiffres obtenus à la fin de chaque énigme (8361)."
 
     return render_template(
