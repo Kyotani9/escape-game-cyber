@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import io
 import csv
@@ -61,6 +62,30 @@ def handle_500(e):
     """, 500
 
 
+def parse_seconds(val):
+    if val is None:
+        return 0
+    if isinstance(val, (int, float)):
+        return int(val)
+    s = str(val).strip()
+    if s.isdigit():
+        return int(s)
+    m = re.search(r"(\d+)\s*m\s*(\d+)\s*s", s)
+    if m:
+        return int(m.group(1)) * 60 + int(m.group(2))
+    nums = re.findall(r"\d+", s)
+    if len(nums) == 2:
+        return int(nums[0]) * 60 + int(nums[1])
+    elif len(nums) == 1:
+        return int(nums[0])
+    return 0
+
+
+def format_seconds(sec):
+    s = parse_seconds(sec)
+    return f"{s // 60}m {s % 60:02d}s"
+
+
 def get_db():
     if DATABASE_URL:
         uri = DATABASE_URL.strip()
@@ -86,7 +111,7 @@ def init_db():
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
-                    temps_ecoule INTEGER DEFAULT 0,
+                    temps_ecoule TEXT DEFAULT '0',
                     erreurs INTEGER DEFAULT 0
                 )
             """)
@@ -94,7 +119,7 @@ def init_db():
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT DEFAULT ''")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT ''")
-            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule INTEGER DEFAULT 0")
+            cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule TEXT DEFAULT '0'")
             cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS erreurs INTEGER DEFAULT 0")
         else:
             cur.execute("""
@@ -104,7 +129,7 @@ def init_db():
                     date_jeu TEXT DEFAULT '',
                     service TEXT DEFAULT '',
                     statut TEXT DEFAULT '',
-                    temps_ecoule INTEGER DEFAULT 0,
+                    temps_ecoule TEXT DEFAULT '0',
                     erreurs INTEGER DEFAULT 0
                 )
             """)
@@ -396,22 +421,53 @@ def victoire():
 def admin_scores():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, nom, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY erreurs ASC, temps_ecoule ASC, id DESC")
-    scores = cur.fetchall()
+    cur.execute("SELECT * FROM escape_scores ORDER BY id DESC")
+    raw_rows = cur.fetchall()
     cur.close()
     conn.close()
 
+    scores = []
     stats_srv = {}
-    for row in scores:
-        s = row["service"] or "Non renseigné"
-        t = int(row["temps_ecoule"] or 0)
-        err = int(row["erreurs"] or 0)
-        if s not in stats_srv:
-            stats_srv[s] = {"service": s, "participants": 0, "total_erreurs": 0, "meilleur_temps": t}
-        stats_srv[s]["participants"] += 1
-        stats_srv[s]["total_erreurs"] += err
-        if t > 0 and (stats_srv[s]["meilleur_temps"] == 0 or t < stats_srv[s]["meilleur_temps"]):
-            stats_srv[s]["meilleur_temps"] = t
+
+    for r in raw_rows:
+        row_dict = dict(r)
+        nom_val = (
+            row_dict.get("nom")
+            or row_dict.get("nom_agent")
+            or row_dict.get("joueur")
+            or row_dict.get("participant")
+            or "Agent"
+        )
+        date_val = (
+            row_dict.get("date_jeu")
+            or row_dict.get("date_passage")
+            or row_dict.get("date")
+            or "—"
+        )
+        srv_val = row_dict.get("service") or "Non renseigné"
+        statut_val = row_dict.get("statut") or "Réussi"
+        t_sec = parse_seconds(row_dict.get("temps_ecoule") or row_dict.get("temps"))
+        err_val = parse_seconds(row_dict.get("erreurs"))
+
+        scores.append({
+            "id": row_dict.get("id"),
+            "nom": nom_val,
+            "date_jeu": date_val,
+            "service": srv_val,
+            "statut": statut_val,
+            "temps_sec": t_sec,
+            "temps_affichage": format_seconds(t_sec),
+            "erreurs": err_val
+        })
+
+        if srv_val not in stats_srv:
+            stats_srv[srv_val] = {"service": srv_val, "participants": 0, "total_erreurs": 0, "meilleur_temps": t_sec}
+        stats_srv[srv_val]["participants"] += 1
+        stats_srv[srv_val]["total_erreurs"] += err_val
+        if t_sec > 0 and (stats_srv[srv_val]["meilleur_temps"] == 0 or t_sec < stats_srv[srv_val]["meilleur_temps"]):
+            stats_srv[srv_val]["meilleur_temps"] = t_sec
+
+    scores.sort(key=lambda x: (x["erreurs"], x["temps_sec"] if x["temps_sec"] > 0 else 999999))
 
     classement_services = []
     for s, data in stats_srv.items():
@@ -420,10 +476,11 @@ def admin_scores():
             "service": s,
             "participants": data["participants"],
             "moyenne_erreurs": moy_err,
-            "meilleur_temps": data["meilleur_temps"]
+            "meilleur_temps": data["meilleur_temps"],
+            "meilleur_temps_affichage": format_seconds(data["meilleur_temps"])
         })
 
-    classement_services.sort(key=lambda x: (x["moyenne_erreurs"], x["meilleur_temps"]))
+    classement_services.sort(key=lambda x: (x["moyenne_erreurs"], x["meilleur_temps"] if x["meilleur_temps"] > 0 else 999999))
 
     return render_template("admin_escape.html", scores=scores, classement_services=classement_services)
 
@@ -433,16 +490,20 @@ def admin_scores():
 def export_csv():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, nom, date_jeu, service, statut, temps_ecoule, erreurs FROM escape_scores ORDER BY erreurs ASC, temps_ecoule ASC")
-    scores = cur.fetchall()
+    cur.execute("SELECT * FROM escape_scores ORDER BY id DESC")
+    raw_rows = cur.fetchall()
     cur.close()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "Nom et Prénom", "Service", "Statut", "Erreurs", "Temps (secondes)", "Date de passage"])
-    for row in scores:
-        writer.writerow([row["id"], row["nom"], row["service"], row["statut"], row["erreurs"], row["temps_ecoule"], row["date_jeu"]])
+    writer.writerow(["ID", "Nom et Prénom", "Service", "Statut", "Erreurs", "Temps", "Date de passage"])
+    for r in raw_rows:
+        d = dict(r)
+        nom_val = d.get("nom") or d.get("nom_agent") or d.get("joueur") or "Agent"
+        date_val = d.get("date_jeu") or d.get("date_passage") or d.get("date") or ""
+        t_fmt = format_seconds(d.get("temps_ecoule") or d.get("temps"))
+        writer.writerow([d.get("id"), nom_val, d.get("service", ""), d.get("statut", ""), d.get("erreurs", 0), t_fmt, date_val])
 
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = "attachment; filename=scores_escape_game_mairie.csv"

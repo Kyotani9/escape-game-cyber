@@ -45,7 +45,6 @@
         </div>
 
         {% if scores %}
-            <!-- Tableau 1 : Classement général des services -->
             <h2>🏆 Classement général des services</h2>
             <div class="table-card">
                 <table>
@@ -60,7 +59,6 @@
                     </thead>
                     <tbody>
                         {% for srv in classement_services %}
-                            {% set bt = srv['meilleur_temps'] | int %}
                             <tr>
                                 <td>
                                     {% if loop.index == 1 %}
@@ -76,14 +74,13 @@
                                 <td><strong>{{ srv['service'] }}</strong></td>
                                 <td>{{ srv['participants'] }}</td>
                                 <td><span class="badge-err">{{ srv['moyenne_erreurs'] }} faute(s)</span></td>
-                                <td><span class="badge-ok">{{ (bt // 60) }}m {{ (bt % 60) }}s</span></td>
+                                <td><span class="badge-ok">{{ srv['meilleur_temps_affichage'] }}</span></td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <!-- Tableau 2 : Classement général du personnel -->
             <h2>🎖️ Classement général du personnel (par performance)</h2>
             <div class="table-card">
                 <table>
@@ -100,14 +97,13 @@
                     </thead>
                     <tbody>
                         {% for row in scores %}
-                            {% set t = row['temps_ecoule'] | int %}
                             <tr>
                                 <td><strong>{{ loop.index }}</strong></td>
-                                <td><strong>{{ row['nom'] if row['nom'] else 'Agent' }}</strong></td>
+                                <td><strong>{{ row['nom'] }}</strong></td>
                                 <td>{{ row['service'] }}</td>
                                 <td><span class="badge-err">{{ row['erreurs'] }} faute(s)</span></td>
-                                <td><span class="badge-ok">{{ (t // 60) }}m {{ (t % 60) }}s</span></td>
-                                <td>{{ row['date_jeu'] if row['date_jeu'] else '—' }}</td>
+                                <td><span class="badge-ok">{{ row['temps_affichage'] }}</span></td>
+                                <td>{{ row['date_jeu'] }}</td>
                                 <td>
                                     <form action="{{ url_for('delete_score', score_id=row['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Supprimer cette participation ?');">
                                         <button type="submit" class="btn-del">Supprimer</button>
