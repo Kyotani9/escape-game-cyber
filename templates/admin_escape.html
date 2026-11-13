@@ -53,11 +53,12 @@
                 </thead>
                 <tbody>
                     {% for row in scores %}
+                        {% set t = row['temps_ecoule'] | int %}
                         <tr>
                             <td>{{ row['date_jeu'] }}</td>
                             <td><strong>{{ row['service'] }}</strong></td>
                             <td><span class="badge-ok">{{ row['statut'] }}</span></td>
-                            <td>{{ (row['temps_ecoule'] // 60) }}m {{ (row['temps_ecoule'] % 60) }}s</td>
+                            <td>{{ (t // 60) }}m {{ (t % 60) }}s</td>
                             <td>{{ row['erreurs'] }}</td>
                             <td>
                                 <form action="{{ url_for('delete_score', score_id=row['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Supprimer cette entrée ?');">
