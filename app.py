@@ -18,7 +18,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "CyberAdam2026!")
 
-TEMPS_TOTAL_SECONDES = 25 * 60
+TEMPS_TOTAL_SECONDES = 10 * 60
 
 SERVICES_MUNICIPAUX = [
     "Accueil Castelrose",
