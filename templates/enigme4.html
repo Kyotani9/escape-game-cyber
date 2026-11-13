@@ -14,8 +14,11 @@
         .alert-title { font-size: 19px; font-weight: bold; color: #f87171; margin-bottom: 8px; }
         .alert-text { font-size: 14px; color: #fecaca; line-height: 1.5; }
         .options-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
-        .option-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: normal; color: #e2e8f0; line-height: 1.45; }
+        .option-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; cursor: pointer; display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: normal; color: #e2e8f0; line-height: 1.45; user-select: none; transition: border-color 0.2s, background 0.2s; }
         .option-item:hover { border-color: #3b82f6; }
+        .option-item.selected { border-color: #3b82f6; background: #172554; }
+        .order-badge { min-width: 28px; height: 28px; border-radius: 50%; border: 2px solid #475569; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: transparent; background: #0b1120; flex-shrink: 0; }
+        .option-item.selected .order-badge { border-color: #38bdf8; background: #2563eb; color: #ffffff; }
         .btn-submit { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
         .btn-submit:hover { background: #1d4ed8; }
         .feedback-error { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14.5px; }
@@ -37,40 +40,43 @@
             </div>
         </div>
 
-        <form method="POST">
-            <p style="font-size: 14.5px; color: #cbd5e1; margin-bottom: 14px;">
-                Quelles sont les bonnes réactions immédiates à adopter pour stopper la propagation au reste de la mairie ? <strong>(Plusieurs réponses possibles — cochez toutes les actions pertinentes)</strong>
+        <form method="POST" id="form-enigme4">
+            <p style="font-size: 14.5px; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
+                Quelles sont les bonnes réactions immédiates à adopter pour stopper la propagation au reste de la mairie ?<br>
+                <strong>Cliquez sur les actions pertinentes dans l'ordre exact de priorité (1re action, puis 2e action...). Cliquez à nouveau sur une action pour la désélectionner.</strong>
             </p>
 
+            <input type="hidden" name="ordre_actions" id="ordre_actions" value="">
+
             <div class="options-list">
-                <label class="option-item">
-                    <input type="checkbox" name="actions" value="eteindre" style="margin-top: 3px;">
+                <div class="option-item" data-val="eteindre" onclick="toggleAction(this)">
+                    <div class="order-badge"></div>
                     <span>Éteindre immédiatement l'ordinateur en maintenant le bouton d'alimentation appuyé pour effacer le virus de la mémoire.</span>
-                </label>
+                </div>
 
-                <label class="option-item">
-                    <input type="checkbox" name="actions" value="debrancher" style="margin-top: 3px;">
+                <div class="option-item" data-val="debrancher" onclick="toggleAction(this)">
+                    <div class="order-badge"></div>
                     <span>Débrancher le câble réseau (Ethernet) et couper le Wi-Fi de l'ordinateur sans l'éteindre.</span>
-                </label>
+                </div>
 
-                <label class="option-item">
-                    <input type="checkbox" name="actions" value="prevenir" style="margin-top: 3px;">
+                <div class="option-item" data-val="prevenir" onclick="toggleAction(this)">
+                    <div class="order-badge"></div>
                     <span>Prévenir immédiatement le service informatique par téléphone (depuis un fixe ou un mobile) sans envoyer d'e-mail depuis le poste infecté.</span>
-                </label>
+                </div>
 
-                <label class="option-item">
-                    <input type="checkbox" name="actions" value="payer" style="margin-top: 3px;">
+                <div class="option-item" data-val="payer" onclick="toggleAction(this)">
+                    <div class="order-badge"></div>
                     <span>Suivre les instructions à l'écran pour contacter les pirates afin de récupérer la clé de déchiffrement des dossiers communaux.</span>
-                </label>
+                </div>
 
-                <label class="option-item">
-                    <input type="checkbox" name="actions" value="cle_usb" style="margin-top: 3px;">
+                <div class="option-item" data-val="cle_usb" onclick="toggleAction(this)">
+                    <div class="order-badge"></div>
                     <span>Brancher rapidement un disque dur externe ou une clé USB pour essayer de sauvegarder les fichiers qui ne sont pas encore bloqués.</span>
-                </label>
+                </div>
             </div>
 
             {% if not success %}
-                <button type="submit" class="btn-submit">Appliquer le protocole d'urgence</button>
+                <button type="submit" class="btn-submit">Appliquer le protocole d'urgence dans cet ordre</button>
             {% endif %}
         </form>
 
@@ -83,5 +89,37 @@
             </div>
         {% endif %}
     </div>
+
+    <script>
+        let selectedOrder = [];
+
+        function toggleAction(el) {
+            const val = el.getAttribute("data-val");
+            const idx = selectedOrder.indexOf(val);
+            if (idx !== -1) {
+                selectedOrder.splice(idx, 1);
+            } else {
+                selectedOrder.push(val);
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            const items = document.querySelectorAll(".option-item");
+            items.forEach(item => {
+                const val = item.getAttribute("data-val");
+                const badge = item.querySelector(".order-badge");
+                const pos = selectedOrder.indexOf(val);
+                if (pos !== -1) {
+                    item.classList.add("selected");
+                    badge.textContent = (pos + 1);
+                } else {
+                    item.classList.remove("selected");
+                    badge.textContent = "";
+                }
+            });
+            document.getElementById("ordre_actions").value = selectedOrder.join(",");
+        }
+    </script>
 </body>
 </html>
