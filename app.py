@@ -68,13 +68,18 @@ def init_db():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS escape_scores (
                 id SERIAL PRIMARY KEY,
-                date_jeu TEXT NOT NULL,
-                service TEXT NOT NULL,
-                statut TEXT NOT NULL,
-                temps_ecoule INTEGER NOT NULL,
-                erreurs INTEGER NOT NULL
+                date_jeu TEXT NOT NULL DEFAULT '',
+                service TEXT NOT NULL DEFAULT '',
+                statut TEXT NOT NULL DEFAULT '',
+                temps_ecoule INTEGER NOT NULL DEFAULT 0,
+                erreurs INTEGER NOT NULL DEFAULT 0
             )
         """)
+        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS date_jeu TEXT NOT NULL DEFAULT ''")
+        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS service TEXT NOT NULL DEFAULT ''")
+        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS statut TEXT NOT NULL DEFAULT ''")
+        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS temps_ecoule INTEGER NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE escape_scores ADD COLUMN IF NOT EXISTS erreurs INTEGER NOT NULL DEFAULT 0")
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS escape_scores (
